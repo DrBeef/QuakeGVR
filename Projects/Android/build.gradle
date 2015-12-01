@@ -1,0 +1,52 @@
+apply plugin: 'com.android.application'
+
+dependencies {
+  compile project(':VrApi:Projects:AndroidPrebuilt')
+  compile project(':VrAppSupport:SystemUtils:Projects:AndroidPrebuilt')
+}
+
+android {
+  compileSdkVersion 19
+  buildToolsVersion '22.0.1'
+
+  buildTypes {
+    debug {
+      jniDebuggable true
+    }
+  }
+
+  sourceSets {
+    main {
+      manifest.srcFile 'AndroidManifest.xml'
+      java.srcDirs = ['src']
+      jniLibs.srcDir 'libs'
+      res.srcDirs = ['res']
+      assets.srcDirs = ['../../assets']
+    }
+  }
+}
+
+project.afterEvaluate {
+  compileDebugNdk.dependsOn   'NDKBuildDebug'
+  compileReleaseNdk.dependsOn 'NDKBuildRelease'
+  clean.dependsOn             'NDKBuildClean'
+}
+
+android.applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+        def alignedOutputFile = output.outputFile
+        def unalignedOutputFile = output.packageApplication.outputFile
+		def buildTypeName = variant.buildType.name
+
+		def finalFileName = rootProject.name + "-" + buildTypeName + ".apk"
+		def unAlignedFileName = rootProject.name + "-" + buildTypeName + "-unsigned" + ".apk"
+
+		output.packageApplication.outputFile = 
+				new File(unalignedOutputFile.parent, unAlignedFileName)
+
+		if (output.zipAlign) {
+			output.outputFile = 
+				new File(alignedOutputFile.parent, finalFileName)
+		}
+	}
+}
