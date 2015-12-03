@@ -191,9 +191,13 @@ static void M_Background(int width, int height)
 	menu_x = (vid_conwidth.integer - menu_width) * 0.5;
 	menu_y = (vid_conheight.integer - menu_height) * 0.5;
 
-	//Make the background barely visible when menu active.. this should avoid people
-	//throwing up while the demo is running!
-	DrawQ_Fill(0, 0, vid_conwidth.integer, vid_conheight.integer, 0, 0, 0, 0.5, 0);
+	//Make the background barely visible when menu active.. and completely
+	//invisible when in toy soldier mode otherwise it is impossible to read
+	float alpha = 0.6f;
+	if (m_state == m_credits)
+		alpha = 0.0f;
+
+	DrawQ_Fill(0, 0, vid_conwidth.integer, vid_conheight.integer, 0, 0, 0, alpha, 0);
 }
 
 /*

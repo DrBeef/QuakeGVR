@@ -167,21 +167,6 @@ int Sys_Milliseconds (void)
 	return curtime;
 }
 
-static const float meters_to_units = 40.0f;
-
-//Should get this from OVR
-float GVR_GetSeparation()
-{
-	static float separation = 0.0;
-	if (separation == 0.0)
-	{
-		//Generic eye separation of 0.065 metres
-		separation = meters_to_units * 0.065;
-	}
-	return separation;
-}
-
-
 int returnvalue = -1;
 void GVR_exit(int exitCode)
 {
@@ -935,19 +920,26 @@ static ovrFrameParms ovrRenderer_RenderFrame( ovrRenderer * renderer, const ovrJ
 
 		ovrFramebuffer_SetCurrent( frameBuffer );
 
-		GL( glEnable( GL_SCISSOR_TEST ) );
-		GL( glDepthMask( GL_TRUE ) );
-		GL( glEnable( GL_DEPTH_TEST ) );
-		GL( glDepthFunc( GL_LEQUAL ) );
-		GL( glViewport( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
-		GL( glScissor( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
-		GL( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
-		GL( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
-		GL( glDisable(GL_SCISSOR_TEST));
-
-		//Now do the drawing for this eye
-		QGVR_DrawFrame(eye);
-
+		//If showing the menu, then render mono, easier to navigate menu
+		if (eye > 0 && m_state != m_none)
+		{
+			//Do nothing, we just use the left eye again, render in Mono
+		}
+		else
+		{
+			GL( glEnable( GL_SCISSOR_TEST ) );
+			GL( glDepthMask( GL_TRUE ) );
+			GL( glEnable( GL_DEPTH_TEST ) );
+			GL( glDepthFunc( GL_LEQUAL ) );
+			GL( glViewport( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
+			GL( glScissor( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
+			GL( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
+			GL( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
+			GL( glDisable(GL_SCISSOR_TEST));
+			//Now do the drawing for this eye
+			QGVR_DrawFrame(eye);
+		}
+		
 		//Clear edge to prevent smearing
 		ovrFramebuffer_ClearEdgeTexels( frameBuffer );
 
