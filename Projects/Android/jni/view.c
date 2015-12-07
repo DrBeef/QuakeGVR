@@ -97,7 +97,7 @@ cvar_t cl_stairsmoothspeed = {CVAR_SAVE, "cl_stairsmoothspeed", "160", "how fast
 
 cvar_t cl_smoothviewheight = {CVAR_SAVE, "cl_smoothviewheight", "0", "time of the averaging to the viewheight value so that it creates a smooth transition. higher values = longer transition, 0 for instant transition."};
 
-cvar_t chase_back = {CVAR_SAVE, "chase_back", "130", "chase cam distance from the player"};
+cvar_t chase_back = {CVAR_SAVE, "chase_back", "180", "chase cam distance from the player"};
 cvar_t chase_up = {CVAR_SAVE, "chase_up", "20", "chase cam distance from the player"};
 cvar_t chase_active = {CVAR_SAVE, "chase_active", "0", "enables chase cam"};
 cvar_t chase_overhead = {CVAR_SAVE, "chase_overhead", "0", "chase cam looks straight down if this is not zero"};
