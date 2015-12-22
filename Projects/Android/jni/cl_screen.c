@@ -28,7 +28,7 @@ cvar_t scr_conscroll2_y = {CVAR_SAVE, "scr_conscroll2_y", "0", "scroll speed of 
 cvar_t scr_conscroll3_x = {CVAR_SAVE, "scr_conscroll3_x", "0", "scroll speed of gfx/conback3 in x direction"};
 cvar_t scr_conscroll3_y = {CVAR_SAVE, "scr_conscroll3_y", "0", "scroll speed of gfx/conback3 in y direction"};
 cvar_t scr_menuforcewhiledisconnected = {0, "scr_menuforcewhiledisconnected", "0", "forces menu while disconnected"};
-cvar_t scr_centertime = {0, "scr_centertime","3", "how long centerprint messages show"};
+cvar_t scr_centertime = {0, "scr_centertime","4", "how long centerprint messages show"};
 cvar_t scr_showram = {CVAR_SAVE, "showram","1", "show ram icon if low on surface cache memory (not used)"};
 cvar_t scr_showturtle = {CVAR_SAVE, "showturtle","0", "show turtle icon when framerate is too low"};
 cvar_t scr_showpause = {CVAR_SAVE, "showpause","1", "show pause icon when game is paused"};
@@ -145,7 +145,18 @@ for a few moments
 */
 void SCR_CenterPrint(const char *str)
 {
-	strlcpy (scr_centerstring, str, sizeof (scr_centerstring));
+	//Check to see if this is the shareware message, if so, replace with a more up to date
+	//relevant one
+	if (strstr(str, "1-800")) {
+		char tempstr[] = "This episode isn't availble in the Shareware version\n"
+			"You can buy the full game of Quake for $10 on Steam:\n"
+				"http://store.steampowered.com/app/2310/";
+		strlcpy(scr_centerstring, tempstr, sizeof(scr_centerstring));
+	}
+	else {
+		strlcpy(scr_centerstring, str, sizeof(scr_centerstring));
+	}
+
 	scr_centertime_off = scr_centertime.value;
 	scr_centertime_start = cl.time;
 
