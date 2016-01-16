@@ -855,7 +855,7 @@ void QuatToYawPitchRoll(ovrQuatf q, vec3_t out) {
 	float sqz = q.z*q.z;
 	float unit = sqx + sqy + sqz + sqw; // if normalised is one, otherwise is correction factor
 	float test = q.x*q.y + q.z*q.w;
-	if( test > 0.499*unit ) { // singularity at north pole
+	if( test > 0.4999*unit ) { // singularity at north pole
 		out[YAW] = 2 * atan2(q.x,q.w) / (M_PI / 180.0f);
 		out[ROLL] = -M_PI/2 / (M_PI / 180.0f) ;
 		out[PITCH] = 0;
@@ -975,6 +975,9 @@ static ovrFrameParms ovrRenderer_RenderFrame( ovrRenderer * renderer, const ovrJ
 			// Bind texture to fbo's color texture
 			GL( glActiveTexture(GL_TEXTURE0) );
 			const GLuint colorTexture = vrapi_GetTextureSwapChainHandle( renderer->QuakeFrameBuffer.ColorTextureSwapChain, renderer->QuakeFrameBuffer.TextureSwapChainIndex );
+
+			GLint originalTex0 = 0;
+			glGetIntegerv(GL_TEXTURE_BINDING_2D, &originalTex0);
 			GL( glBindTexture( GL_TEXTURE_2D, colorTexture ) );
 
 			// Set the sampler texture unit to our fbo's color texture
@@ -982,17 +985,18 @@ static ovrFrameParms ovrRenderer_RenderFrame( ovrRenderer * renderer, const ovrJ
 
 			//Bind vignette texture to texture 1
 			GL( glActiveTexture( GL_TEXTURE1 ) );
+			GLint originalTex1 = 0;
+			glGetIntegerv(GL_TEXTURE_BINDING_2D, &originalTex1);
 			GL( glBindTexture( GL_TEXTURE_2D,  vignetteTexture) );
 			GL( glUniform1i(vignetteParam, 1) );
 			
 			// Draw the triangles
 			GL( glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices) );
 
-			// Disable vertex array
+			//Restore previously active textures
+			GL( glBindTexture(GL_TEXTURE_2D, originalTex1) );
 			GL( glActiveTexture(GL_TEXTURE0) );
-			GL( glBindTexture(GL_TEXTURE_2D, 0) );
-			GL( glActiveTexture(GL_TEXTURE1) );
-			GL( glBindTexture(GL_TEXTURE_2D, 0) );
+			GL( glBindTexture(GL_TEXTURE_2D, originalTex0) );
 
 			ovrFramebuffer_ClearEdgeTexels( frameBuffer );
 		}
