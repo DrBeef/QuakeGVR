@@ -25,6 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int cl_available = true;
 
+static long oldtime = 0;
+
 qboolean vid_supportrefreshrate = false;
 
 void VID_Shutdown(void)
@@ -560,6 +562,31 @@ void QGVR_MoveEvent(float yaw, float pitch, float roll)
 	move_event.yaw = yaw * cl_yawmult.value;
 	move_event.pitch = pitch * cl_pitchmult.value;
 	move_event.roll = roll;
+
+	if (cl_yawmode.integer == 3)
+ 	{
+ 		long t=Sys_Milliseconds();
+ 		long delta=t-oldtime;
+ 		oldtime=t;
+ 		if (delta>1000)
+ 			delta=1000;
+
+ 		float engage_angle = 45.0f;
+
+ 		float dx = yaw;
+ 		if (yaw > engage_angle || yaw < -engage_angle) {
+ 			dx = (yaw > engage_angle) ? dx-engage_angle : dx+engage_angle;
+ 			dx /= -10.0f;
+ 		}
+ 		else {
+ 			dx = 0.0f;
+ 		}
+
+ 		in_mouse_x+=(dx*delta);
+ 		in_windowmouse_x += (dx*delta);
+ 		if (in_windowmouse_x<0) in_windowmouse_x=0;
+ 		if (in_windowmouse_x>andrw-1) in_windowmouse_x=andrw-1;
+ 	}
 }
 
 void QGVR_SetResolution(int width, int height)

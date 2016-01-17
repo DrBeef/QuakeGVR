@@ -142,7 +142,7 @@ void jni_terminateAudio()
 }
 
 //Timing stuff for joypad control
-long oldtime=0;
+static long oldtime=0;
 long delta=0;
 float last_joystick_x=0;
 float last_joystick_y=0;
