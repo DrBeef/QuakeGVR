@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "mprogdefs.h"
 
-#define QGVR_VERSION  "1.0.0"
+#define QGVR_VERSION  "1.0.1"
 
 #define TYPE_DEMO 1
 #define TYPE_GAME 2

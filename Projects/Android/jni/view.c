@@ -105,7 +105,7 @@ cvar_t chase_overhead = {CVAR_SAVE, "chase_overhead", "0", "chase cam looks stra
 cvar_t chase_stevie = {0, "chase_stevie", "0", "(GOODVSBAD2 only) chase cam view from above"};
 
 cvar_t v_deathtilt = {0, "v_deathtilt", "1", "whether to use sideways view when dead"};
-cvar_t v_deathtiltangle = {0, "v_deathtiltangle", "80", "what roll angle to use when tilting the view while dead"};
+cvar_t v_deathtiltangle = {0, "v_deathtiltangle", "0", "what roll angle to use when tilting the view while dead"};
 
 // Prophecy camera pitchangle by Alexander "motorsep" Zubov
 cvar_t chase_pitchangle = {CVAR_SAVE, "chase_pitchangle", "55", "chase cam pitch angle"};

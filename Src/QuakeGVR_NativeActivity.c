@@ -1130,7 +1130,9 @@ static void ovrApp_BackButtonAction( ovrApp * app, const ovrPerformanceParms * p
 	{
 		if ( ( vrapi_GetTimeInSeconds() - app->BackButtonDownStartTime ) > BACK_BUTTON_DOUBLE_TAP_TIME_IN_SECONDS )
 		{
-			SystemActivities_StartSystemActivity( &app->Java, PUI_CONFIRM_QUIT, NULL );
+			//Send ESC to quake
+			QGVR_KeyEvent(1, 27, 0);
+			QGVR_KeyEvent(0, 27, 0);
 			app->BackButtonState = BACK_BUTTON_STATE_NONE;
 		}
 	}
