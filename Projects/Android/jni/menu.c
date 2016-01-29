@@ -1686,8 +1686,14 @@ static void M_Menu_Options_AdjustSliders (int dir)
 		if (cl_backspeed.value < 10)
 			cl_backspeed.value = 10;
 
+		if (cl_sidespeed.value > 500)
+			cl_sidespeed.value = 500;
+		if (cl_sidespeed.value < 10)
+			cl_sidespeed.value = 10;
+
 		Cvar_SetValueQuick (&cl_forwardspeed, cl_forwardspeed.value);
 		Cvar_SetValueQuick (&cl_backspeed, cl_backspeed.value);
+		Cvar_SetValueQuick (&cl_sidespeed, cl_sidespeed.value);
 	}
 	else if (options_cursor == optnum++) Cvar_SetValueQuick(&showfps, !showfps.integer);
 	else if (options_cursor == optnum++) ;
