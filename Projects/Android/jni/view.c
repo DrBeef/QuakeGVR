@@ -35,6 +35,8 @@ when crossing a water boudnary.
 cvar_t cl_rollspeed = {0, "cl_rollspeed", "200", "how much strafing is necessary to tilt the view"};
 cvar_t cl_rollangle = {0, "cl_rollangle", "0.0", "how much to tilt the view when strafing"};
 
+cvar_t cl_weaponrecoil = {0, "cl_weaponrecoil", "0", "Whether weapon recoil is enabled"};
+
 cvar_t cl_bob = {CVAR_SAVE, "cl_bob","0.0", "view bobbing amount"};
 cvar_t cl_bobcycle = {CVAR_SAVE, "cl_bobcycle","0.6", "view bobbing speed"};
 cvar_t cl_bobup = {CVAR_SAVE, "cl_bobup","0.5", "view bobbing adjustment that makes the up or down swing of the bob last longer"};
@@ -73,9 +75,10 @@ cvar_t cl_followmodel_up_highpass1 = {CVAR_SAVE, "cl_followmodel_up_highpass1", 
 cvar_t cl_followmodel_up_highpass = {CVAR_SAVE, "cl_followmodel_up_highpass", "2", "gun following upward highpass in 1/s"};
 cvar_t cl_followmodel_up_lowpass = {CVAR_SAVE, "cl_followmodel_up_lowpass", "10", "gun following upward lowpass in 1/s"};
 
-cvar_t cl_viewmodel_scale = {0, "cl_viewmodel_scale", "1", "changes size of gun model, lower values prevent poking into walls but cause strange artifacts on lighting and especially r_stereo/vid_stereobuffer options where the size of the gun becomes visible"};
+//Changed from 1 to 0.75 to reduce effect of "gun poking through wall but drawn on top"
+cvar_t cl_viewmodel_scale = {0, "cl_viewmodel_scale", "0.75", "changes size of gun model, lower values prevent poking into walls but cause strange artifacts on lighting and especially r_stereo/vid_stereobuffer options where the size of the gun becomes visible"};
 
-cvar_t v_kicktime = {0, "v_kicktime", "0.5", "how long a view kick from damage lasts"};
+cvar_t v_kicktime = {0, "v_kicktime", "0.0", "how long a view kick from damage lasts"};
 cvar_t v_kickroll = {0, "v_kickroll", "0.6", "how much a view kick from damage rolls your view"};
 cvar_t v_kickpitch = {0, "v_kickpitch", "0.6", "how much a view kick from damage pitches your view"};
 
@@ -644,7 +647,9 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 			// angles
 			if (cldead && v_deathtilt.integer)
 				viewangles[ROLL] = v_deathtiltangle.value;
-			VectorAdd(viewangles, cl.punchangle, viewangles);
+
+			if (cl_weaponrecoil.integer > 0)
+				VectorAdd(viewangles, cl.punchangle, viewangles);
 			viewangles[ROLL] += V_CalcRoll(clviewangles, clvelocity);
 			if (v_dmg_time > 0)
 			{
@@ -652,7 +657,8 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 				viewangles[PITCH] += v_dmg_time/v_kicktime.value*v_dmg_pitch;
 			}
 			// origin
-			VectorAdd(vieworg, cl.punchvector, vieworg);
+			if (cl_weaponrecoil.integer > 0)
+            	VectorAdd(vieworg, cl.punchvector, vieworg);
 			if (!cldead)
 			{
 				double xyspeed, bob, bobfall;
@@ -1094,6 +1100,8 @@ void V_Init (void)
 	Cvar_RegisterVariable (&cl_bobmodel_side);
 	Cvar_RegisterVariable (&cl_bobmodel_up);
 	Cvar_RegisterVariable (&cl_bobmodel_speed);
+
+	Cvar_RegisterVariable (&cl_weaponrecoil);
 
 	Cvar_RegisterVariable (&cl_leanmodel);
 	Cvar_RegisterVariable (&cl_leanmodel_side_speed);

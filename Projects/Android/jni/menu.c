@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "mprogdefs.h"
 
-#define QGVR_VERSION  "1.0.1"
+#define QGVR_VERSION  "1.0.2"
 
 #define TYPE_DEMO 1
 #define TYPE_GAME 2
@@ -44,6 +44,10 @@ char m_return_reason[128];
 extern vec3_t hmdorientation;
 
 extern cvar_t r_worldscale;
+
+extern cvar_t cl_weaponrecoil;
+extern cvar_t cl_bob;
+extern cvar_t v_kicktime;
 
 extern void BigScreenMode(int mode);
 extern void ResetHMDOrientation();
@@ -1774,33 +1778,33 @@ static void M_Options_Draw (void)
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, OPTIONS_ITEMS - visible)) * 8;
 
 	if (bigScreen == 2)
-		M_Options_PrintCommand( "       Big Screen Mode: Enabled", true);
+		M_Options_PrintCommand( "         Big Screen Mode: Enabled", true);
 	else
-		M_Options_PrintCommand( "       Big Screen Mode: Disabled", true);
-	M_Options_PrintCommand( "   Controller Settings", true);
-	M_Options_PrintCommand( "    Open Quake Console", true);
-	M_Options_PrintCommand( "     Reset to defaults", true);
-	M_Options_PrintSlider(  " Eye Buffer Resolution", false, 1024, 256, 2048);
-	M_Options_PrintCommand( "   Key/Button Bindings", true);
-	M_Options_PrintSlider(  "             Crosshair", true, crosshair.value, 0, 7);
-	M_Options_PrintSlider(  "         Field of View", true, scr_fov.integer, 1, 170);
-	M_Options_PrintSlider(  " Player Movement Speed", true, cl_forwardspeed.value, 10, 500);
-	M_Options_PrintCheckbox("        Show Framerate", true, showfps.integer);
-	M_Options_PrintCommand( "     Custom Brightness", true);
-	M_Options_PrintSlider(  "       Game Brightness", true, r_hdr_scenebrightness.value, 1, 4);
-	M_Options_PrintSlider(  "            Brightness", true, v_contrast.value, 1, 2);
-	M_Options_PrintSlider(  "                 Gamma", true, v_gamma.value, 0.5, 3);
-	M_Options_PrintCheckbox("      Toy Soldier Mode", true, r_worldscale.value > 200.0f);
-	M_Options_PrintCommand( "     Customize Effects", true);
-	M_Options_PrintCommand( "       Effects:  Quake", true);
-	M_Options_PrintCommand( "       Effects: Normal", true);
-	M_Options_PrintCommand( "       Effects:   High", true);
-	M_Options_PrintCommand( "    Customize Lighting", true);
-	M_Options_PrintCommand( "      Lighting: Flares", true);
-	M_Options_PrintCommand( "      Lighting: Normal", true);
-	M_Options_PrintCommand( "      Lighting:   High", true);
-	M_Options_PrintCommand( "      Lighting:   Full", true);
-	M_Options_PrintCommand( "           Browse Mods", true);
+		M_Options_PrintCommand( "         Big Screen Mode: Disabled", true);
+	M_Options_PrintCommand( "Control/Comfort Settings", true);
+	M_Options_PrintCommand( "      Open Quake Console", true);
+	M_Options_PrintCommand( "       Reset to defaults", true);
+	M_Options_PrintSlider(  "   Eye Buffer Resolution", false, 1024, 256, 2048);
+	M_Options_PrintCommand( "     Key/Button Bindings", true);
+	M_Options_PrintSlider(  "               Crosshair", true, crosshair.value, 0, 7);
+	M_Options_PrintSlider(  "           Field of View", true, scr_fov.integer, 1, 170);
+	M_Options_PrintSlider(  "   Player Movement Speed", true, cl_forwardspeed.value, 10, 500);
+	M_Options_PrintCheckbox("          Show Framerate", true, showfps.integer);
+	M_Options_PrintCommand( "       Custom Brightness", true);
+	M_Options_PrintSlider(  "         Game Brightness", true, r_hdr_scenebrightness.value, 1, 4);
+	M_Options_PrintSlider(  "              Brightness", true, v_contrast.value, 1, 2);
+	M_Options_PrintSlider(  "                   Gamma", true, v_gamma.value, 0.5, 3);
+	M_Options_PrintCheckbox("        Toy Soldier Mode", true, r_worldscale.value > 200.0f);
+	M_Options_PrintCommand( "       Customize Effects", true);
+	M_Options_PrintCommand( "         Effects:  Quake", true);
+	M_Options_PrintCommand( "         Effects: Normal", true);
+	M_Options_PrintCommand( "         Effects:   High", true);
+	M_Options_PrintCommand( "      Customize Lighting", true);
+	M_Options_PrintCommand( "        Lighting: Flares", true);
+	M_Options_PrintCommand( "        Lighting: Normal", true);
+	M_Options_PrintCommand( "        Lighting:   High", true);
+	M_Options_PrintCommand( "        Lighting:   Full", true);
+	M_Options_PrintCommand( "             Browse Mods", true);
 }
 
 
@@ -2889,7 +2893,7 @@ static void M_Reset_Draw (void)
 	M_Print(8 + 4 * (linelength - 11), 16, "Press y / n");
 }
 
-#define	YAWCONTROL_ITEMS	5
+#define	YAWCONTROL_ITEMS	8
 
 static int yawpitchcontrol_cursor;
 
@@ -2944,6 +2948,13 @@ static void M_Menu_YawPitchControl_AdjustSliders (int dir)
 		}
 	else if (yawpitchcontrol_cursor == optnum++  && cl_yawmode.integer == 2)
 		Cvar_SetValueQuick (&sensitivity, bound(1, (sensitivity.value + (dir * 0.25)), 10));
+
+	else if (yawpitchcontrol_cursor == optnum++)
+		Cvar_SetValueQuick (&cl_bob, 0.02 - cl_bob.value);
+	else if (yawpitchcontrol_cursor == optnum++)
+		Cvar_SetValueQuick (&v_kicktime, 0.5 - v_kicktime.value);
+	else if (yawpitchcontrol_cursor == optnum++)
+		Cvar_SetValueQuick (&cl_weaponrecoil, 1 - cl_weaponrecoil.integer);
 }
 
 static void M_Menu_YawPitchControl_Key (int key, int ascii)
@@ -3040,28 +3051,43 @@ static void M_Menu_YawPitchControl_Draw (void)
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, YAWCONTROL_ITEMS - visible)) * 8;
 
 	if (cl_headtracking.integer == 0)
-		M_Options_PrintCommand(" Sensor Headtracking:  Disabled", true);
+		M_Options_PrintCommand(" Sensor Headtracking:   Disabled", true);
 	else
-		M_Options_PrintCommand(" Sensor Headtracking:  Enabled", true);
+		M_Options_PrintCommand(" Sensor Headtracking:   Enabled", true);
 
 	if (cl_pitchmode.integer == 0)
-		M_Options_PrintCommand(" Pitch Mode:           Head-tracked Only", true);
+		M_Options_PrintCommand("          Pitch Mode:   Head-tracked Only", true);
 	else if (cl_pitchmode.integer == 1)
-		M_Options_PrintCommand(" Pitch Mode:           Right-Stick (inverted)", true);
+		M_Options_PrintCommand("          Pitch Mode:   Right-Stick (inverted)", true);
 	else if (cl_pitchmode.integer == 2)
-		M_Options_PrintCommand(" Pitch Mode:           Right-Stick", true);
+		M_Options_PrintCommand("          Pitch Mode:   Right-Stick", true);
 
 	if (cl_yawmode.integer == 0)
-		M_Options_PrintCommand("   Yaw Mode:           Swivel-Chair", true);
+		M_Options_PrintCommand("          Yaw Mode:     Swivel-Chair", true);
 	else if (cl_yawmode.integer == 1)
-		M_Options_PrintCommand("   Yaw Mode:           Comfort-Mode", true);
+		M_Options_PrintCommand("          Yaw Mode:     Comfort-Mode", true);
 	else if (cl_yawmode.integer == 2)
-  		M_Options_PrintCommand("   Yaw Mode:           Stick-Yaw", true);
+  		M_Options_PrintCommand("          Yaw Mode:     Stick-Yaw", true);
  	else
- 		M_Options_PrintCommand("   Yaw Mode:           Look-To-Turn", true);
+ 		M_Options_PrintCommand("          Yaw Mode:     Look-To-Turn", true);
 
-	M_Options_PrintSlider(  "Comfort Mode Turn Angle", cl_yawmode.integer == 1, cl_comfort.value, 30, 180);
-	M_Options_PrintSlider(  "   Stick Yaw Turn Speed", cl_yawmode.integer == 2, sensitivity.value, 1, 10);
+	M_Options_PrintSlider(     "Comfort Mode Turn Angle", cl_yawmode.integer == 1, cl_comfort.value, 30, 180);
+	M_Options_PrintSlider(     "   Stick Yaw Turn Speed", cl_yawmode.integer == 2, sensitivity.value, 1, 10);
+
+	if (cl_bob.value == 0.0)
+  		M_Options_PrintCommand("          Head-Bob:     Disabled", true);
+  	else
+		M_Options_PrintCommand("          Head-Bob:     Enabled", true);
+	if (v_kicktime.value == 0.0)
+  		M_Options_PrintCommand("     Damage Recoil:     Disabled", true);
+  	else
+		M_Options_PrintCommand("     Damage Recoil:     Enabled", true);
+	if (cl_weaponrecoil.integer == 0)
+  		M_Options_PrintCommand("     Weapon Recoil:     Disabled", true);
+  	else
+		M_Options_PrintCommand("     Weapon Recoil:     Enabled", true);
+
+
 	if (cl_yawmode.integer == 2)
 	{
 		M_Options_PrintCommand(" ", true);
