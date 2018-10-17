@@ -26,12 +26,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static unsigned int audiopos = 0;
 static unsigned int buffersize;
-__attribute__((weak)) __dso_handle=0;
+//__attribute__((weak)) __dso_handle=0;
 
 extern void jni_initAudio(void *buffer, int size);
 extern void jni_writeAudio(int offset, int length);
 
-void QGVR_GetAudio()
+void QC_GetAudio()
 {
     int offset = (audiopos*4) & (buffersize - 1);
     if (snd_renderbuffer!=NULL)

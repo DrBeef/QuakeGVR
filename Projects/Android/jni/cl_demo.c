@@ -24,9 +24,6 @@ extern cvar_t cl_capturevideo;
 extern cvar_t cl_capturevideo_demo_stop;
 int old_vsync = 0;
 
-//Access the main activity demo playback flag
-extern qboolean demoplayback;
-
 static void CL_FinishTimeDemo (void);
 
 /*
@@ -90,7 +87,6 @@ void CL_StopPlayback (void)
 
 	FS_Close (cls.demofile);
 	cls.demoplayback = false;
-	demoplayback = false;
 	cls.demofile = NULL;
 
 	if (cls.timedemo)
@@ -450,7 +446,6 @@ void CL_PlayDemo_f (void)
 	strlcpy(cls.demoname, name, sizeof(cls.demoname));
 
 	cls.demoplayback = true;
-	demoplayback = true;
 	cls.state = ca_connected;
 	cls.forcetrack = 0;
 

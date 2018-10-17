@@ -1,0 +1,17 @@
+{
+  "buildFiles": [
+    "G:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\jni\\Android.mk",
+    "G:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\jni\\Application.mk"
+  ],
+  "cleanCommands": [
+    "C:\\Users\\Simon\\AppData\\Local\\Android\\Sdk\\ndk-bundle\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dG:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\jni\\Android.mk NDK_APPLICATION_MK\u003dG:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-21 NDK_OUT\u003dG:/ovr_sdk_mobile_1.18.0/VrSamples/QuakeGVR/Projects/Android/build/intermediates/ndkBuild/release/obj NDK_LIBS_OUT\u003dG:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\build\\intermediates\\ndkBuild\\release\\lib V\u003d0 -CG:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android APP_PLATFORM\u003dandroid-21 NDK_TOOLCHAIN_VERSION\u003dclang APP_STL\u003dc++_shared NDK_DEBUG\u003d0 OVR_DEBUG\u003d0 clean"
+  ],
+  "libraries": {
+    "quakegvr-release-armeabi-v7a": {
+      "artifactName": "quakegvr",
+      "buildCommand": "C:\\Users\\Simon\\AppData\\Local\\Android\\Sdk\\ndk-bundle\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dG:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\jni\\Android.mk NDK_APPLICATION_MK\u003dG:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-21 NDK_OUT\u003dG:/ovr_sdk_mobile_1.18.0/VrSamples/QuakeGVR/Projects/Android/build/intermediates/ndkBuild/release/obj NDK_LIBS_OUT\u003dG:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\build\\intermediates\\ndkBuild\\release\\lib V\u003d0 -j8 -CG:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android APP_PLATFORM\u003dandroid-21 NDK_TOOLCHAIN_VERSION\u003dclang APP_STL\u003dc++_shared NDK_DEBUG\u003d0 OVR_DEBUG\u003d0 G:/ovr_sdk_mobile_1.18.0/VrSamples/QuakeGVR/Projects/Android/build/intermediates/ndkBuild/release/obj/local/armeabi-v7a/libquakegvr.so",
+      "abi": "armeabi-v7a",
+      "output": "G:\\ovr_sdk_mobile_1.18.0\\VrSamples\\QuakeGVR\\Projects\\Android\\build\\intermediates\\ndkBuild\\release\\obj\\local\\armeabi-v7a\\libquakegvr.so"
+    }
+  }
+}

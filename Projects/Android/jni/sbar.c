@@ -119,13 +119,14 @@ static void Sbar_IntermissionOverlay (void);
 static void Sbar_FinaleOverlay (void);
 
 
+extern qboolean vrMode;
 extern vec3_t hmdorientation;
 extern cvar_t r_worldscale;
 
 //Calculate the y-offset of the status bar dependent on where the user is looking
 int Sbar_GetYOffset()
 {
-	if (hmdorientation[PITCH] <= 15.0f)
+	if (hmdorientation[PITCH] <= 15.0f || !vrMode)
 		return 0;
 
 	int offset = (vid_conheight.value * ((hmdorientation[PITCH] - 15.0f) / 90.0f));
@@ -135,12 +136,11 @@ int Sbar_GetYOffset()
 
 int Sbar_GetXOffset()
 {
+	if (!vrMode)
+		return 0;
+
 	//This will give the status bar depth in the 3D space
-	int yaw = 0;//(hmdorientation[YAW] * 3);
-	//rudimentary clamp
-	//yaw = (yaw > 40) ? 40 : yaw;
-	//yaw = (yaw < -40) ? -40 : yaw;
-	return (r_stereo_side ? -20 : 20) + yaw;
+	return (r_stereo_side ? -20 : 20);
 }
 
 /*
@@ -1257,7 +1257,7 @@ void Sbar_ShowFPS(void)
 		}
 		if (timedemostring1[0])
 		{
-			fps_x = (vid_conwidth.integer / 2) - (DrawQ_TextWidth(timedemostring1, 0, fps_scalex, fps_scaley, true, FONT_INFOBAR) / 2) + Sbar_GetXOffset();
+			fps_x = (vid_conwidth.integer / 2) -  (DrawQ_TextWidth(timedemostring1, 0, fps_scalex, fps_scaley, true, FONT_INFOBAR) / 2) + Sbar_GetXOffset();
 			DrawQ_String(fps_x, fps_y, timedemostring1, 0, fps_scalex, fps_scaley, 1, 1, 1, 1, 0, NULL, true, FONT_INFOBAR);
 			fps_y += fps_scaley;
 		}
@@ -1325,7 +1325,6 @@ static void Sbar_DrawGauge(float x, float y, cachepic_t *pic, float width, float
 	if (r[4] > r[3])
 		DrawQ_SuperPic(x, y + r[3], pic, width, (r[4] - r[3]), 0,(r[3] / height), c3r,c3g,c3b,c3a, 1,(r[3] / height), c3r,c3g,c3b,c3a, 0,(r[4] / height), c3r,c3g,c3b,c3a, 1,(r[4] / height), c3r,c3g,c3b,c3a, drawflags);
 }
-
 
 /*
 ===============

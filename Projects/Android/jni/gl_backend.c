@@ -2,11 +2,7 @@
 #include "quakedef.h"
 #include "cl_collision.h"
 #include "dpsoftrast.h"
-#ifdef SUPPORTD3D
-#include <d3d9.h>
-extern LPDIRECT3DDEVICE9 vid_d3d9dev;
-extern D3DCAPS9 vid_d3d9caps;
-#endif
+#include "glquake.h"
 
 // on GLES we have to use some proper #define's
 #ifndef GL_FRAMEBUFFER

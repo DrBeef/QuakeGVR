@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 #include <time.h>
+#include <stdbool.h>
 #include "libcurl.h"
 #include "cdaudio.h"
 #include "cl_video.h"
@@ -670,7 +671,7 @@ double wait;
 int pass1, pass2, pass3, i;
 char vabuf[1024];
 qboolean playing;
-void Host_BeginFrame(void)
+void Host_BeginFrame(bool progressTime)
 {
 		if (setjmp(host_abortframe))
 		{
@@ -678,57 +679,58 @@ void Host_BeginFrame(void)
 			return;
 		}
 
-		olddirtytime = host_dirtytime;
-		dirtytime = Sys_DirtyTime();
-		deltacleantime = dirtytime - olddirtytime;
-		if (deltacleantime < 0)
-		{
-			// warn if it's significant
-			if (deltacleantime < -0.01)
-				Con_Printf("Host_Mingled: time stepped backwards (went from %f to %f, difference %f)\n", olddirtytime, dirtytime, deltacleantime);
-			deltacleantime = 0;
-		}
-		else if (deltacleantime >= 1800)
-		{
-			Con_Printf("Host_Mingled: time stepped forward (went from %f to %f, difference %f)\n", olddirtytime, dirtytime, deltacleantime);
-			deltacleantime = 0;
-		}
-		realtime += deltacleantime;
-		host_dirtytime = dirtytime;
-
-		cl_timer += deltacleantime;
-		sv_timer += deltacleantime;
-
-		if (!svs.threaded)
-		{
-			svs.perf_acc_realtime += deltacleantime;
-
-			// Look for clients who have spawned
-			playing = false;
-			for (i = 0, host_client = svs.clients;i < svs.maxclients;i++, host_client++)
-				if(host_client->begun)
-					if(host_client->netconnection)
-						playing = true;
-			if(sv.time < 10)
-			{
-				// don't accumulate time for the first 10 seconds of a match
-				// so things can settle
-				svs.perf_acc_realtime = svs.perf_acc_sleeptime = svs.perf_acc_lost = svs.perf_acc_offset = svs.perf_acc_offset_squared = svs.perf_acc_offset_max = svs.perf_acc_offset_samples = 0;
+		if (progressTime) {
+			olddirtytime = host_dirtytime;
+			dirtytime = Sys_DirtyTime();
+			deltacleantime = dirtytime - olddirtytime;
+			if (deltacleantime < 0) {
+				// warn if it's significant
+				if (deltacleantime < -0.01)
+					Con_Printf(
+							"Host_Mingled: time stepped backwards (went from %f to %f, difference %f)\n",
+							olddirtytime, dirtytime, deltacleantime);
+				deltacleantime = 0;
+			} else if (deltacleantime >= 1800) {
+				Con_Printf(
+						"Host_Mingled: time stepped forward (went from %f to %f, difference %f)\n",
+						olddirtytime, dirtytime, deltacleantime);
+				deltacleantime = 0;
 			}
-			else if(svs.perf_acc_realtime > 5)
-			{
-				svs.perf_cpuload = 1 - svs.perf_acc_sleeptime / svs.perf_acc_realtime;
-				svs.perf_lost = svs.perf_acc_lost / svs.perf_acc_realtime;
-				if(svs.perf_acc_offset_samples > 0)
-				{
-					svs.perf_offset_max = svs.perf_acc_offset_max;
-					svs.perf_offset_avg = svs.perf_acc_offset / svs.perf_acc_offset_samples;
-					svs.perf_offset_sdev = sqrt(svs.perf_acc_offset_squared / svs.perf_acc_offset_samples - svs.perf_offset_avg * svs.perf_offset_avg);
+			realtime += deltacleantime;
+			host_dirtytime = dirtytime;
+
+			cl_timer += deltacleantime;
+			sv_timer += deltacleantime;
+
+			if (!svs.threaded) {
+				svs.perf_acc_realtime += deltacleantime;
+
+				// Look for clients who have spawned
+				playing = false;
+				for (i = 0, host_client = svs.clients; i < svs.maxclients; i++, host_client++)
+					if (host_client->begun)
+						if (host_client->netconnection)
+							playing = true;
+				if (sv.time < 10) {
+					// don't accumulate time for the first 10 seconds of a match
+					// so things can settle
+					svs.perf_acc_realtime = svs.perf_acc_sleeptime = svs.perf_acc_lost = svs.perf_acc_offset = svs.perf_acc_offset_squared = svs.perf_acc_offset_max = svs.perf_acc_offset_samples = 0;
+				} else if (svs.perf_acc_realtime > 5) {
+					svs.perf_cpuload = 1 - svs.perf_acc_sleeptime / svs.perf_acc_realtime;
+					svs.perf_lost = svs.perf_acc_lost / svs.perf_acc_realtime;
+					if (svs.perf_acc_offset_samples > 0) {
+						svs.perf_offset_max = svs.perf_acc_offset_max;
+						svs.perf_offset_avg = svs.perf_acc_offset / svs.perf_acc_offset_samples;
+						svs.perf_offset_sdev = sqrt(
+								svs.perf_acc_offset_squared / svs.perf_acc_offset_samples -
+								svs.perf_offset_avg * svs.perf_offset_avg);
+					}
+					if (svs.perf_lost > 0 && developer_extra.integer)
+						if (playing) // only complain if anyone is looking
+							Con_DPrintf("Server can't keep up: %s\n",
+										Host_TimingReport(vabuf, sizeof(vabuf)));
+					svs.perf_acc_realtime = svs.perf_acc_sleeptime = svs.perf_acc_lost = svs.perf_acc_offset = svs.perf_acc_offset_squared = svs.perf_acc_offset_max = svs.perf_acc_offset_samples = 0;
 				}
-				if(svs.perf_lost > 0 && developer_extra.integer)
-					if(playing) // only complain if anyone is looking
-						Con_DPrintf("Server can't keep up: %s\n", Host_TimingReport(vabuf, sizeof(vabuf)));
-				svs.perf_acc_realtime = svs.perf_acc_sleeptime = svs.perf_acc_lost = svs.perf_acc_offset = svs.perf_acc_offset_squared = svs.perf_acc_offset_max = svs.perf_acc_offset_samples = 0;
 			}
 		}
 
@@ -1010,11 +1012,11 @@ void Host_BeginFrame(void)
 	CL_BeginUpdateScreen();
 }
 
-void Host_Frame(int eye)
+void Host_Frame(int eye, int x, int y)
 {
 	r_stereo_side = eye;
 
-	SCR_DrawScreen();
+	SCR_DrawScreen(x, y);
 
 	R_TimeReport("render");
 }
@@ -1447,7 +1449,7 @@ void Host_Shutdown(void)
 	Cmd_Shutdown();
 	Key_Shutdown();
 	CL_Shutdown();
-	Sys_Shutdown();
+	//Sys_Shutdown();
 	Log_Close();
 	Crypto_Shutdown();
 
@@ -1455,6 +1457,6 @@ void Host_Shutdown(void)
 
 	S_Shutdown();
 	Con_Shutdown();
-	Memory_Shutdown();
+	//Memory_Shutdown();
 }
 

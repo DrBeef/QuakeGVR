@@ -32,10 +32,10 @@ when crossing a water boudnary.
 
 */
 
+cvar_t cl_autocentreoffset = {CVAR_SAVE, "cl_autocentreoffset", "0", "Additional lens offset (for difficult headets) from the centre to get images converging ok"};
+
 cvar_t cl_rollspeed = {0, "cl_rollspeed", "200", "how much strafing is necessary to tilt the view"};
 cvar_t cl_rollangle = {0, "cl_rollangle", "0.0", "how much to tilt the view when strafing"};
-
-cvar_t cl_weaponrecoil = {0, "cl_weaponrecoil", "0", "Whether weapon recoil is enabled"};
 
 cvar_t cl_bob = {CVAR_SAVE, "cl_bob","0.0", "view bobbing amount"};
 cvar_t cl_bobcycle = {CVAR_SAVE, "cl_bobcycle","0.6", "view bobbing speed"};
@@ -46,7 +46,7 @@ cvar_t cl_bob2smooth = {CVAR_SAVE, "cl_bob2smooth","0.05", "how fast the view go
 cvar_t cl_bobfall = {CVAR_SAVE, "cl_bobfall","0", "how much the view swings down when falling (influenced by the speed you hit the ground with)"};
 cvar_t cl_bobfallcycle = {CVAR_SAVE, "cl_bobfallcycle","3", "speed of the bobfall swing"};
 cvar_t cl_bobfallminspeed = {CVAR_SAVE, "cl_bobfallminspeed","200", "necessary amount of speed for bob-falling to occur"};
-cvar_t cl_bobmodel = {CVAR_SAVE, "cl_bobmodel", "1", "enables gun bobbing"};
+cvar_t cl_bobmodel = {CVAR_SAVE, "cl_bobmodel", "0", "enables gun bobbing"};
 cvar_t cl_bobmodel_side = {CVAR_SAVE, "cl_bobmodel_side", "0.15", "gun bobbing sideways sway amount"};
 cvar_t cl_bobmodel_up = {CVAR_SAVE, "cl_bobmodel_up", "0.06", "gun bobbing upward movement amount"};
 cvar_t cl_bobmodel_speed = {CVAR_SAVE, "cl_bobmodel_speed", "7", "gun bobbing speed"};
@@ -75,12 +75,11 @@ cvar_t cl_followmodel_up_highpass1 = {CVAR_SAVE, "cl_followmodel_up_highpass1", 
 cvar_t cl_followmodel_up_highpass = {CVAR_SAVE, "cl_followmodel_up_highpass", "2", "gun following upward highpass in 1/s"};
 cvar_t cl_followmodel_up_lowpass = {CVAR_SAVE, "cl_followmodel_up_lowpass", "10", "gun following upward lowpass in 1/s"};
 
-//Changed from 1 to 0.75 to reduce effect of "gun poking through wall but drawn on top"
-cvar_t cl_viewmodel_scale = {0, "cl_viewmodel_scale", "0.75", "changes size of gun model, lower values prevent poking into walls but cause strange artifacts on lighting and especially r_stereo/vid_stereobuffer options where the size of the gun becomes visible"};
+cvar_t cl_viewmodel_scale = {0, "cl_viewmodel_scale", "0.6", "changes size of gun model, lower values prevent poking into walls but cause strange artifacts on lighting and especially r_stereo/vid_stereobuffer options where the size of the gun becomes visible"};
 
 cvar_t v_kicktime = {0, "v_kicktime", "0.0", "how long a view kick from damage lasts"};
-cvar_t v_kickroll = {0, "v_kickroll", "0.6", "how much a view kick from damage rolls your view"};
-cvar_t v_kickpitch = {0, "v_kickpitch", "0.6", "how much a view kick from damage pitches your view"};
+cvar_t v_kickroll = {0, "v_kickroll", "0.0", "how much a view kick from damage rolls your view"};
+cvar_t v_kickpitch = {0, "v_kickpitch", "0.0 ", "how much a view kick from damage pitches your view"};
 
 cvar_t v_iyaw_cycle = {0, "v_iyaw_cycle", "2", "v_idlescale yaw speed"};
 cvar_t v_iroll_cycle = {0, "v_iroll_cycle", "0.5", "v_idlescale roll speed"};
@@ -91,7 +90,7 @@ cvar_t v_ipitch_level = {0, "v_ipitch_level", "0.3", "v_idlescale pitch amount"}
 
 cvar_t v_idlescale = {0, "v_idlescale", "0", "how much of the quake 'drunken view' effect to use"};
 
-cvar_t crosshair = {CVAR_SAVE, "crosshair", "0", "selects crosshair to use (0 is none)"};
+cvar_t crosshair = {0, "crosshair", "0", "selects crosshair to use (0 is none)"};
 
 cvar_t v_centermove = {0, "v_centermove", "0.15", "how long before the view begins to center itself (if freelook/+mlook/+jlook/+klook are off)"};
 cvar_t v_centerspeed = {0, "v_centerspeed","500", "how fast the view centers itself"};
@@ -114,6 +113,13 @@ cvar_t v_deathtiltangle = {0, "v_deathtiltangle", "0", "what roll angle to use w
 cvar_t chase_pitchangle = {CVAR_SAVE, "chase_pitchangle", "55", "chase cam pitch angle"};
 
 float	v_dmg_time, v_dmg_roll, v_dmg_pitch;
+
+float gunangles[3];
+float worldPosition[3];
+extern qboolean rightHanded;
+
+extern cvar_t r_worldscale;
+extern cvar_t cl_positionaltrackingmode;
 
 
 /*
@@ -473,7 +479,7 @@ static void highpass3_limited(vec3_t value, vec_t fracx, vec_t limitx, vec_t fra
 void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewangles, qboolean teleported, qboolean clonground, qboolean clcmdjump, float clstatsviewheight, qboolean cldead, qboolean clintermission, const vec3_t clvelocity)
 {
 	float vieworg[3], viewangles[3], smoothtime;
-	float gunorg[3], gunangles[3];
+	float gunorg[3];
 	matrix4x4_t tmpmatrix;
 	
 	static float viewheightavg;
@@ -556,6 +562,15 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 		viewheight = bound(0, (cl.time - cl.calcrefdef_prevtime) / max(0.0001, cl_smoothviewheight.value), 1);
 		viewheightavg = viewheightavg * (1 - viewheight) + clstatsviewheight * viewheight;
 		vieworg[2] += viewheightavg;
+
+		//Modify view origin with our positional offsets (multiplied by our world scale
+		vieworg[2] += (worldPosition[1] * r_worldscale.value); // Up/Down
+
+		//Camera based positional movement
+		if (cl_positionaltrackingmode.integer == 1) {
+            vieworg[1] += (worldPosition[0] * r_worldscale.value); // Left/Right
+            vieworg[0] += (worldPosition[2] * r_worldscale.value); // Forward/Back
+        }
 
 		if (chase_active.value)
 		{
@@ -645,11 +660,9 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 		{
 			// first person view from entity
 			// angles
-			if (cldead && v_deathtilt.integer)
-				viewangles[ROLL] = v_deathtiltangle.value;
-
-			if (cl_weaponrecoil.integer > 0)
-				VectorAdd(viewangles, cl.punchangle, viewangles);
+			//if (cldead && v_deathtilt.integer)
+			//	viewangles[ROLL] = v_deathtiltangle.value;
+			//VectorAdd(viewangles, cl.punchangle, viewangles);
 			viewangles[ROLL] += V_CalcRoll(clviewangles, clvelocity);
 			if (v_dmg_time > 0)
 			{
@@ -657,8 +670,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 				viewangles[PITCH] += v_dmg_time/v_kicktime.value*v_dmg_pitch;
 			}
 			// origin
-			if (cl_weaponrecoil.integer > 0)
-            	VectorAdd(vieworg, cl.punchvector, vieworg);
+			//VectorAdd(vieworg, cl.punchvector, vieworg);
 			if (!cldead)
 			{
 				double xyspeed, bob, bobfall;
@@ -687,30 +699,48 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 				cl.gunangles_highpass[PITCH] += 360 * floor((viewangles[PITCH] - cl.gunangles_highpass[PITCH]) / 360 + 0.5);
 				cl.gunangles_highpass[YAW] += 360 * floor((viewangles[YAW] - cl.gunangles_highpass[YAW]) / 360 + 0.5);
 				cl.gunangles_highpass[ROLL] += 360 * floor((viewangles[ROLL] - cl.gunangles_highpass[ROLL]) / 360 + 0.5);
-				highpass3_limited(viewangles, frametime*cl_leanmodel_up_highpass1.value, cl_leanmodel_up_limit.value, frametime*cl_leanmodel_side_highpass1.value, cl_leanmodel_side_limit.value, 0, 0, cl.gunangles_highpass, gunangles);
+				if (cl_controllermode.integer == 0) {
+					highpass3_limited(viewangles, frametime * cl_leanmodel_up_highpass1.value,
+									  cl_leanmodel_up_limit.value,
+									  frametime * cl_leanmodel_side_highpass1.value,
+									  cl_leanmodel_side_limit.value, 0, 0, cl.gunangles_highpass,
+									  gunangles);
+				}
 				VectorCopy(viewangles, cl.gunangles_prev);
 				VectorSubtract(cl.gunangles_highpass, cl.gunangles_prev, cl.gunangles_highpass);
 
-				// 3. calculate the RAW adjustment vectors
+                // 3. calculate the RAW adjustment vectors
 				gunorg[0] *= (cl_followmodel.value ? -cl_followmodel_side_speed.value : 0);
 				gunorg[1] *= (cl_followmodel.value ? -cl_followmodel_side_speed.value : 0);
 				gunorg[2] *= (cl_followmodel.value ? -cl_followmodel_up_speed.value : 0);
 
-				gunangles[PITCH] *= (cl_leanmodel.value ? -cl_leanmodel_up_speed.value : 0);
-				gunangles[YAW] *= (cl_leanmodel.value ? -cl_leanmodel_side_speed.value : 0);
-				gunangles[ROLL] = 0;
+				if (cl_controllermode.integer == 0) {
+					//Come from controller orientation
+					gunangles[PITCH] *= (cl_leanmodel.value ? -cl_leanmodel_up_speed.value : 0);
+					gunangles[YAW] *= (cl_leanmodel.value ? -cl_leanmodel_side_speed.value : 0);
+					gunangles[ROLL] = 0;
+				}
 
 				// 4. perform highpass/lowpass on the adjustment vectors (turning velocity into acceleration!)
 				//    trick: we must do the lowpass LAST, so the lowpass vector IS the final vector!
 				highpass3(gunorg, frametime*cl_followmodel_side_highpass.value, frametime*cl_followmodel_side_highpass.value, frametime*cl_followmodel_up_highpass.value, cl.gunorg_adjustment_highpass, gunorg);
 				lowpass3(gunorg, frametime*cl_followmodel_side_lowpass.value, frametime*cl_followmodel_side_lowpass.value, frametime*cl_followmodel_up_lowpass.value, cl.gunorg_adjustment_lowpass, gunorg);
-				// we assume here: PITCH = 0, YAW = 1, ROLL = 2
-				highpass3(gunangles, frametime*cl_leanmodel_up_highpass.value, frametime*cl_leanmodel_side_highpass.value, 0, cl.gunangles_adjustment_highpass, gunangles);
-				lowpass3(gunangles, frametime*cl_leanmodel_up_lowpass.value, frametime*cl_leanmodel_side_lowpass.value, 0, cl.gunangles_adjustment_lowpass, gunangles);
+
+
+				if (cl_controllermode.integer == 0) {
+					highpass3(gunangles, frametime * cl_leanmodel_up_highpass.value,
+							  frametime * cl_leanmodel_side_highpass.value, 0,
+							  cl.gunangles_adjustment_highpass, gunangles);
+					lowpass3(gunangles, frametime * cl_leanmodel_up_lowpass.value,
+							 frametime * cl_leanmodel_side_lowpass.value, 0,
+							 cl.gunangles_adjustment_lowpass, gunangles);
+				}
 
 				// 5. use the adjusted vectors
 				VectorAdd(vieworg, gunorg, gunorg);
-				VectorAdd(viewangles, gunangles, gunangles);
+				if (cl_controllermode.integer == 0) {
+					VectorAdd(viewangles, gunangles, gunangles);
+				}
 
 				// bounded XY speed, used by several effects below
 				xyspeed = bound (0, sqrt(clvelocity[0]*clvelocity[0] + clvelocity[1]*clvelocity[1]), 400);
@@ -859,13 +889,18 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 			viewangles[1] += v_idlescale.value * sin(cl.time*v_iyaw_cycle.value) * v_iyaw_level.value;
 			viewangles[2] += v_idlescale.value * sin(cl.time*v_iroll_cycle.value) * v_iroll_level.value;
 		}
+
 		Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2], viewangles[0], viewangles[1], viewangles[2], 1);
 
 		// calculate a viewmodel matrix for use in view-attached entities
 		Matrix4x4_Copy(&viewmodelmatrix_nobob, &r_refdef.view.matrix);
 		Matrix4x4_ConcatScale(&viewmodelmatrix_nobob, cl_viewmodel_scale.value);
 
-		Matrix4x4_CreateFromQuakeEntity(&viewmodelmatrix_withbob, gunorg[0], gunorg[1], gunorg[2], gunangles[0], gunangles[1], gunangles[2], cl_viewmodel_scale.value);
+		Matrix4x4_CreateFromQuakeEntity(&viewmodelmatrix_withbob, gunorg[0], gunorg[1], gunorg[2], gunangles[0], gunangles[1], 0.0f /*no roll*/, cl_viewmodel_scale.value);
+
+        //Move gun to left or right depending on handedness
+        Matrix4x4_ConcatTranslate(&viewmodelmatrix_withbob, 0.0f, ((rightHanded ? -0.25f : 0.25f) * r_worldscale.value), -0.15f * r_worldscale.value);
+
 		VectorCopy(vieworg, cl.csqc_vieworiginfromengine);
 		VectorCopy(viewangles, cl.csqc_viewanglesfromengine);
 
@@ -1085,6 +1120,8 @@ void V_Init (void)
 	Cvar_RegisterVariable (&v_idlescale);
 	Cvar_RegisterVariable (&crosshair);
 
+	Cvar_RegisterVariable (&cl_autocentreoffset);
+
 	Cvar_RegisterVariable (&cl_rollspeed);
 	Cvar_RegisterVariable (&cl_rollangle);
 	Cvar_RegisterVariable (&cl_bob);
@@ -1100,8 +1137,6 @@ void V_Init (void)
 	Cvar_RegisterVariable (&cl_bobmodel_side);
 	Cvar_RegisterVariable (&cl_bobmodel_up);
 	Cvar_RegisterVariable (&cl_bobmodel_speed);
-
-	Cvar_RegisterVariable (&cl_weaponrecoil);
 
 	Cvar_RegisterVariable (&cl_leanmodel);
 	Cvar_RegisterVariable (&cl_leanmodel_side_speed);

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/Android.iml" filepath="$PROJECT_DIR$/Android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../Projects.iml" filepath="$PROJECT_DIR$/../Projects.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../../../QuakeGVR.iml" filepath="$PROJECT_DIR$/../../../../QuakeGVR.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../../VrSamples.iml" filepath="$PROJECT_DIR$/../../../VrSamples.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../VrSamples-QuakeGVR.iml" filepath="$PROJECT_DIR$/../../VrSamples-QuakeGVR.iml" />
+    </modules>
+  </component>
+</project>

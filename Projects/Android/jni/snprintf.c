@@ -697,7 +697,8 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap) {
           break;
         }
         case 's':
-          str_arg = va_arg(ap, const char *);
+            str_arg = NULL;
+            str_arg = va_arg(ap, const char *);
           if (!str_arg) str_arg_l = 0;
        /* make sure not to address string beyond the specified precision !!! */
           else if (!precision_specified) str_arg_l = strlen(str_arg);

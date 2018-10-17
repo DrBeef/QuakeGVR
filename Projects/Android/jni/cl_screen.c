@@ -28,7 +28,7 @@ cvar_t scr_conscroll2_y = {CVAR_SAVE, "scr_conscroll2_y", "0", "scroll speed of 
 cvar_t scr_conscroll3_x = {CVAR_SAVE, "scr_conscroll3_x", "0", "scroll speed of gfx/conback3 in x direction"};
 cvar_t scr_conscroll3_y = {CVAR_SAVE, "scr_conscroll3_y", "0", "scroll speed of gfx/conback3 in y direction"};
 cvar_t scr_menuforcewhiledisconnected = {0, "scr_menuforcewhiledisconnected", "0", "forces menu while disconnected"};
-cvar_t scr_centertime = {0, "scr_centertime","4", "how long centerprint messages show"};
+cvar_t scr_centertime = {0, "scr_centertime","3", "how long centerprint messages show"};
 cvar_t scr_showram = {CVAR_SAVE, "showram","1", "show ram icon if low on surface cache memory (not used)"};
 cvar_t scr_showturtle = {CVAR_SAVE, "showturtle","0", "show turtle icon when framerate is too low"};
 cvar_t scr_showpause = {CVAR_SAVE, "showpause","1", "show pause icon when game is paused"};
@@ -112,6 +112,9 @@ int			scr_con_margin_bottom;
 
 extern int	con_vislines;
 
+extern void BigScreenMode(int mode);
+
+
 static void SCR_ScreenShot_f (void);
 static void R_Envmap_f (void);
 
@@ -147,7 +150,8 @@ void SCR_CenterPrint(const char *str)
 {
 	//Check to see if this is the shareware message, if so, replace with a more up to date
 	//relevant one
-	if (strstr(str, "1-800")) {
+	if (strstr(str, "1-800"))
+	{
 		char tempstr[] = "This episode isn't availble in the Shareware version\n"
 			"You can buy the full game of Quake for $10 on Steam:\n"
 				"http://store.steampowered.com/app/2310/";
@@ -616,7 +620,7 @@ SCR_DrawInfobar
 */
 static void SCR_DrawInfobar(void)
 {
-	int offset = 0;
+	int offset = 30;
 	offset += SCR_DrawQWDownload(offset);
 	offset += SCR_DrawCurlDownload(offset);
 	if(scr_infobartime_off > 0)
@@ -719,11 +723,15 @@ void SCR_DrawConsole (void)
 	{
 		// full screen
 		Con_DrawConsole (vid_conheight.integer - scr_con_margin_bottom);
+		BigScreenMode(1);
 	}
-	else if (scr_con_current)
-		Con_DrawConsole (min((int)scr_con_current, vid_conheight.integer - scr_con_margin_bottom));
-	else
+	else if (scr_con_current) {
+		Con_DrawConsole(min((int) scr_con_current, vid_conheight.integer - scr_con_margin_bottom));
+		BigScreenMode(1);
+	}
+	else {
 		con_vislines = 0;
+	}
 }
 
 /*
@@ -1373,8 +1381,8 @@ void CL_Screen_Init(void)
 	if (COM_CheckParm ("-noconsole"))
 		Cvar_SetQuick(&scr_conforcewhiledisconnected, "0");
 
-	Cmd_AddCommand ("sizeup",SCR_SizeUp_f, "increase view size (increases viewsize cvar)");
-	Cmd_AddCommand ("sizedown",SCR_SizeDown_f, "decrease view size (decreases viewsize cvar)");
+//	Cmd_AddCommand ("sizeup",SCR_SizeUp_f, "increase view size (increases viewsize cvar)");
+//	Cmd_AddCommand ("sizedown",SCR_SizeDown_f, "decrease view size (decreases viewsize cvar)");
 	Cmd_AddCommand ("screenshot",SCR_ScreenShot_f, "takes a screenshot of the next rendered frame");
 	Cmd_AddCommand ("envmap", R_Envmap_f, "render a cubemap (skybox) of the current scene");
 	Cmd_AddCommand ("infobar", SCR_InfoBar_f, "display a text in the infobar (usage: infobar expiretime string)");
@@ -2067,7 +2075,7 @@ void R_ClearScreen(qboolean fogcolor)
 
 extern int r_stereo_side;
 
-/*static*/ void SCR_DrawScreen ()
+/*static*/ void SCR_DrawScreen (int x, int y)
 {
 	Draw_Frame();
 
@@ -2089,8 +2097,8 @@ extern int r_stereo_side;
 		r_refdef.view.width = (int)(vid.width * size);
 		r_refdef.view.height = (int)(vid.height * size * (1 - bound(0, r_letterbox.value, 100) / 100));
 		r_refdef.view.depth = 1;
-		r_refdef.view.x = (int)((vid.width - r_refdef.view.width)/2);
-		r_refdef.view.y = (int)((vid.height - r_refdef.view.height)/2);
+		r_refdef.view.x = (int)((vid.width - r_refdef.view.width)/2) + x;
+		r_refdef.view.y = (int)((vid.height - r_refdef.view.height)/2) + y;
 		r_refdef.view.z = 0;
 
 		// LordHavoc: viewzoom (zoom in for sniper rifles, etc)
@@ -2115,8 +2123,8 @@ extern int r_stereo_side;
 	r_refdef.view.width = vid.width;
 	r_refdef.view.height = vid.height;
 	r_refdef.view.depth = 1;
-	r_refdef.view.x = 0;
-	r_refdef.view.y = 0;
+	r_refdef.view.x = x;
+	r_refdef.view.y = y;
 	r_refdef.view.z = 0;
 	r_refdef.view.useperspective = false;
 
@@ -2758,8 +2766,8 @@ void CL_EndUpdateScreen()
 {
 	SCR_CaptureVideo();
 
-	if (qglFlush)
-		qglFlush(); // FIXME: should we really be using qglFlush here?
+//	if (qglFlush)
+//		qglFlush(); // FIXME: should we really be using qglFlush here?
 
 	if (!vid_activewindow)
 		VID_SetMouse(false, false, false);

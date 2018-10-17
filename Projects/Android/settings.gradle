@@ -1,4 +1,4 @@
-rootProject.projectDir = new File(settingsDir, '../../../../..')
+rootProject.projectDir = new File(settingsDir, '../../../..')
 rootProject.name = "QuakeGVR"
 
-include ':', 'VrApi:Projects:AndroidPrebuilt', 'VrSamples:Native:QuakeGVR:Projects:Android', 'VrAppSupport:SystemUtils:Projects:AndroidPrebuilt'
+include ':', 'VrSamples:QuakeGVR:Projects:Android'

@@ -14,7 +14,7 @@ def init():
 	while( os.path.isdir( os.path.join(root, 'bin/scripts/build') ) == False ):
 		root = os.path.realpath( os.path.join(root, '..') )
 		if( len(root) <= 5 ): # Should catch both Posix and Windows root directories (e.g. '/' and 'C:\')
-			print "Unable to find SDK root. Exiting."
+			print('Unable to find SDK root. Exiting.')
 			sys.exit(1)
 	root = os.path.abspath(root)
 	os.environ['OCULUS_SDK_PATH'] = root

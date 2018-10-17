@@ -17,6 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
+#include <stdbool.h>
 #include "quakedef.h"
 #include "cdaudio.h"
 #include "image.h"
@@ -24,33 +25,38 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "mprogdefs.h"
 
-#define QGVR_VERSION  "1.0.2"
-
 #define TYPE_DEMO 1
 #define TYPE_GAME 2
 #define TYPE_BOTH 3
 
 static cvar_t forceqmenu = { 0, "forceqmenu", "0", "enables the quake menu instead of the quakec menu.dat (if present)" };
 static cvar_t menu_progs = { 0, "menu_progs", "menu.dat", "name of quakec menu.dat file" };
+extern cvar_t cl_positionaltrackingmode;
 
 static int NehGameType;
 
-//Game always starts showing the menu on the big screen in stereo
-extern int bigScreen;
+static const char* sNo = "No";
+static const char* sYes = "Yes";
+
+//Game always starts in vr mode, showing the menu on the big screen in stereo
+int vrMode = 2;
+int stereoMode = 1;
+
+extern int andrw;
 
 enum m_state_e m_state = m_main;
 char m_return_reason[128];
 
 extern vec3_t hmdorientation;
+extern char *strGameFolder;
 
 extern cvar_t r_worldscale;
 
-extern cvar_t cl_weaponrecoil;
-extern cvar_t cl_bob;
-extern cvar_t v_kicktime;
-
 extern void BigScreenMode(int mode);
-extern void ResetHMDOrientation();
+extern void SwitchStereoMode(int mode);
+extern void ControllerStrafeMode(int mode);
+
+extern bool jni_isPositionTrackingSupported();
 
 //Record yaw at the moment the menu is invoked
 static float hmdYaw = 0;
@@ -195,13 +201,9 @@ static void M_Background(int width, int height)
 	menu_x = (vid_conwidth.integer - menu_width) * 0.5;
 	menu_y = (vid_conheight.integer - menu_height) * 0.5;
 
-	//Make the background barely visible when menu active.. and completely
-	//invisible when in toy soldier mode otherwise it is impossible to read
-	float alpha = 0.6f;
-	if (m_state == m_credits)
-		alpha = 0.0f;
-
-	DrawQ_Fill(0, 0, vid_conwidth.integer, vid_conheight.integer, 0, 0, 0, alpha, 0);
+	//Make the background barely visible when menu active.. this should avoid people
+	//throwing up while the demo is running!
+	DrawQ_Fill(0, 0, vid_conwidth.integer, vid_conheight.integer, 0, 0, 0, 0.75, 0);
 }
 
 /*
@@ -226,12 +228,22 @@ static void M_PrintColored(float cx, float cy, const char *str)
 
 static void M_Print(float cx, float cy, const char *str)
 {
-	DrawQ_String(menu_x + cx, menu_y + cy, str, 0, 8, 8, 1, 1, 1, 1, 0, NULL, true, FONT_MENU);
+	DrawQ_String(menu_x + cx, menu_y + cy, str, 0, 8, 8, 1, 1, 1, 1, 0, NULL, true, FONT_SBAR);
+}
+
+static void M_Print_Big(float cx, float cy, const char *str)
+{
+	DrawQ_String(menu_x + cx, menu_y + cy, str, 0, 12, 12, 1, 1, 1, 1, 0, NULL, true, FONT_MENU);
 }
 
 static void M_PrintRed(float cx, float cy, const char *str)
 {
 	DrawQ_String(menu_x + cx, menu_y + cy, str, 0, 8, 8, 1, 0, 0, 1, 0, NULL, true, FONT_MENU);
+}
+
+static void M_PrintRed_Big(float cx, float cy, const char *str)
+{
+	DrawQ_String(menu_x + cx, menu_y + cy, str, 0, 12, 12, 1, 0, 0, 1, 0, NULL, true, FONT_MENU);
 }
 
 static void M_ItemPrint(float cx, float cy, const char *str, int unghosted)
@@ -298,6 +310,7 @@ static void M_DrawTextBox(float x, float y, float width, float height)
 //int m_save_demonum;
 
 extern cvar_t cl_nosplashscreen;
+extern cvar_t cl_autocentreoffset;
 
 /*
 ================
@@ -321,7 +334,6 @@ static void M_ToggleMenu(int mode)
 			//These are only shown at the start of the game
 			M_Menu_Credits_f();
 
-		ResetHMDOrientation();
 		BigScreenMode(1);
 	}
 	else
@@ -330,6 +342,7 @@ static void M_ToggleMenu(int mode)
 			return; // the menu is on, and we want it on
 		key_dest = key_game;
 		m_state = m_none;
+		Host_SaveConfig();
 		BigScreenMode(0);
 	}
 }
@@ -399,6 +412,7 @@ static void M_Demo_Key (int k, int ascii)
 
 static int	m_main_cursor;
 static qboolean m_missingdata = false;
+int gameAssetsDownloadStatus = -1;
 
 static int MAIN_ITEMS = 4; // Nehahra: Menu Disable
 
@@ -481,20 +495,90 @@ static void M_Main_Draw (void)
 
 	if (m_missingdata)
 	{
+		showfps.integer = 0;
+
 		float y;
 		const char *s;
 		M_Background(640, 480); //fall back is always to 640x480, this makes it most readable at that.
 		y = 480/3-16;
-		s = "You have reached this menu due to missing or unlocatable content/data";
-		M_PrintRed ((640-strlen(s)*8)*0.5, (480/3)-16, s);y+=8;
-		y+=8;
-		s = "Please copy the PAK files from the fullgame or";M_Print (100, y, s);y+=8;
-		s = "shareware version (which you can download for free from";M_Print (100, y, s);y+=8;
-		s = "the following location: http://bit.ly/1PTsnsb )";M_Print (100, y, s);y+=8;
-		s = "to the following folder on your device:";M_Print (100, y, s);y+=16;
-		s = "/sdcard/Q4GVR/id1";M_Print (100, y, s);y+=8;
-		M_Print (640/2 - 48, 480/2 + 8, "Tap Screen to Quit");
-		M_DrawCharacter(640/2 - 86, 480/2 + 8, 12+((int)(realtime*4)&1));
+
+		if (gameAssetsDownloadStatus == -1)
+		{
+			s = "** YOU NEED TO COPY GAME FILES TO YOUR PHONE **";
+			M_PrintRed_Big ((640-strlen(s)*12)*0.5, (480/3)-16, s);y+=32;
+			s = "Due to copyright, game data files can't be included";M_Print_Big (30, y, s);y+=20;
+			s = "Please download the shareware version from:";M_Print_Big(30, y, s);y+=20;
+			s = "http://bit.ly/1PTsnsb";M_Print_Big(30, y, s);y+=20;
+			s = "or copy the pak files from the full version ";M_Print_Big(30, y, s);y+=20;
+			s = "to the following folder :";M_Print_Big(30, y, s);y+=20;
+			s = "{PHONE_MEMORY} / QGVR / id1";M_Print_Big(30, y, s);y+=28;
+			s = "Full instructions doc: http://bit.ly/21GHVXI";M_Print_Big(30, y, s);y+=20;
+		}
+		else if (gameAssetsDownloadStatus == 0)
+		{
+			s = "** SHAREWARE DOWNLOAD FAILED **";
+			M_PrintRed_Big((640 - strlen(s) * 12) * 0.5, (480 / 3) - 16, s);
+			y += 32;
+			s = "Please restart QGVR";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "and the download will try again";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "If you own the full game you can";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "copy the pak files from the full version ";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "to the following folder :";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "{PHONE_MEMORY} / QGVR / id1";
+			M_Print_Big(30, y, s);
+			y += 28;
+			s = "Full instructions doc: http://bit.ly/21GHVXI";
+			M_Print_Big(30, y, s);
+			y += 20;
+		}
+		else if (gameAssetsDownloadStatus == 1) {
+			s = "** SHAREWARE DOWNLOAD COMPLETED SUCCESSFULLY **";
+			M_PrintRed_Big((640 - strlen(s) * 12) * 0.5, (480 / 3) - 16, s);
+			y += 32;
+			s = "Please restart QGVR";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "If you own the full game you can";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "copy the pak files from the full version ";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "to the following folder :";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "{PHONE_MEMORY} / QGVR / id1";
+			M_Print_Big(30, y, s);
+			y += 28;
+			s = "Full instructions doc: http://bit.ly/21GHVXI";
+			M_Print_Big(30, y, s);
+			y += 20;
+		}
+		else if (gameAssetsDownloadStatus == 2)
+		{
+			s = "** GAME FILES NEED TO DOWNLOAD TO YOUR PHONE **";
+			M_PrintRed_Big((640 - strlen(s) * 12) * 0.5, (480 / 3) - 16, s);
+			y += 32;
+			s = "Due to copyright, game data files cannot be included";
+			M_Print_Big(30, y, s);
+			y += 20;
+			s = "The shareware version is downloading.";
+			M_Print_Big(30, y, s);
+		}
+
+		M_Print_Big (640/2 - 128, 480/2 + 128, " ++ Tap Screen to Quit ++");
+
+		M_DrawCharacter(640/2 - 128, 480/2 + 128, 12+((int)(realtime*4)&1));
 		return;
 	}
 
@@ -524,22 +608,26 @@ static void M_Main_Draw (void)
 	M_DrawPic (16, 4, "gfx/qplaque");
 	p = Draw_CachePic ("gfx/ttl_main");
 	M_DrawPic ( (320-p->width)/2, 4, "gfx/ttl_main");
+
+	//M_DrawTextBox(72, 30, 28, 1);
+
+
 // Nehahra
 	if (gamemode == GAME_NEHAHRA)
 	{
 		if (NehGameType == TYPE_BOTH)
-			M_DrawPic (72, 32, "gfx/mainmenu");
+			M_DrawPic (72, 54, "gfx/mainmenu");
 		else if (NehGameType == TYPE_GAME)
-			M_DrawPic (72, 32, "gfx/gamemenu");
+			M_DrawPic (72, 54, "gfx/gamemenu");
 		else
-			M_DrawPic (72, 32, "gfx/demomenu");
+			M_DrawPic (72, 54, "gfx/demomenu");
 	}
 	else
-		M_DrawPic (72, 32, "gfx/mainmenu");
+		M_DrawPic (72, 34, "gfx/mainmenu");
 
 	f = (int)(realtime * 10)%6;
 
-	M_DrawPic (54, 32 + m_main_cursor * 20, va(vabuf, sizeof(vabuf), "gfx/menudot%i", f+1));
+	M_DrawPic (54, 34 + m_main_cursor * 20, va(vabuf, sizeof(vabuf), "gfx/menudot%i", f+1));
 }
 
 
@@ -573,20 +661,9 @@ static void M_Main_Key (int key, int ascii)
 
 		if (m_missingdata)
 		{
-			switch (m_main_cursor)
-			{
-			case 0:
-				if (cls.state == ca_connected)
-				{
-					m_state = m_none;
-					key_dest = key_game;
-				}
-				Con_ToggleConsole_f ();
-				break;
-			case 1:
-				M_Menu_Quit_f ();
-				break;
-			}
+			Host_Quit_f ();
+			key_dest = key_game;
+			m_state = m_none;
 		}
 		else if (gamemode == GAME_NEHAHRA)
 		{
@@ -770,6 +847,7 @@ static void M_Main_Key (int key, int ascii)
 			case 4:
 				M_Menu_Quit_f ();
 				break;
+
 			}
 		}
 	}
@@ -1623,7 +1701,7 @@ static void M_DrawCheckbox (int x, int y, int on)
 }
 
 
-#define OPTIONS_ITEMS 25
+#define OPTIONS_ITEMS 24
 
 static int options_cursor;
 
@@ -1648,34 +1726,27 @@ static void M_Menu_Options_AdjustSliders (int dir)
 
 	optnum = 0;
 	if (options_cursor == optnum++) {
-		bigScreen = (bigScreen == 2 ? 1 : 2);
-		int newVal = bigScreen == 1 ? 1 : 0;
-		Cvar_SetValueQuick (&cl_headtracking, newVal);
+		stereoMode = 1 - stereoMode;
 	}
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
-	else if (options_cursor == optnum++)
-		 {/*
-			 if (vrMode) {
-				 if (dir == 1) {
-					 andrw *= 2;
-					 if (andrw > 2048)
-						 andrw = 256;
-				 }
-				 else {
-					 andrw /= 2;
-					 if (andrw < 256)
-						 andrw = 2048;
-				 }
-
-				 //Push back up to Java
-				 jni_setEyeBufferResolution(andrw);
-			 }*/
-		 }
 	else if (options_cursor == optnum++) ;
-	else if (options_cursor == optnum++) Cvar_SetValueQuick(&crosshair, bound(0, crosshair.integer + dir, 7));
-	else if (options_cursor == optnum++) Cvar_SetValueQuick(&scr_fov, bound(1, scr_fov.integer + dir * 1, 170));
+	else if (options_cursor == optnum++) ;
+	else if (options_cursor == optnum++) ;
+    else if (options_cursor == optnum++)
+    {
+        if (jni_isPositionTrackingSupported())
+        {
+            int newMode = cl_positionaltrackingmode.integer + dir;
+            if (newMode == 3)
+                newMode = 0;
+            if (newMode == -1)
+                newMode = 2;
+
+            Cvar_SetValueQuick(&cl_positionaltrackingmode, newMode);
+        }
+    }
 	else if (options_cursor == optnum++)
 	{
 		cl_forwardspeed.value += dir * 10;
@@ -1690,6 +1761,7 @@ static void M_Menu_Options_AdjustSliders (int dir)
 		if (cl_backspeed.value < 10)
 			cl_backspeed.value = 10;
 
+		cl_sidespeed.value += dir * 10;
 		if (cl_sidespeed.value > 500)
 			cl_sidespeed.value = 500;
 		if (cl_sidespeed.value < 10)
@@ -1713,7 +1785,7 @@ static void M_Menu_Options_AdjustSliders (int dir)
 		}
 		else
 		{
-			Cvar_SetValueQuick (&r_worldscale, 40.0f);
+			Cvar_SetValueQuick (&r_worldscale, 30.0f);
 			Cvar_SetValueQuick (&chase_active, 0);
 		}
 	}
@@ -1777,34 +1849,53 @@ static void M_Options_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, OPTIONS_ITEMS - visible)) * 8;
 
-	if (bigScreen == 2)
-		M_Options_PrintCommand( "         Big Screen Mode: Enabled", true);
-	else
-		M_Options_PrintCommand( "         Big Screen Mode: Disabled", true);
-	M_Options_PrintCommand( "Control/Comfort Settings", true);
-	M_Options_PrintCommand( "      Open Quake Console", true);
-	M_Options_PrintCommand( "       Reset to defaults", true);
-	M_Options_PrintSlider(  "   Eye Buffer Resolution", false, 1024, 256, 2048);
-	M_Options_PrintCommand( "     Key/Button Bindings", true);
-	M_Options_PrintSlider(  "               Crosshair", true, crosshair.value, 0, 7);
-	M_Options_PrintSlider(  "           Field of View", true, scr_fov.integer, 1, 170);
-	M_Options_PrintSlider(  "   Player Movement Speed", true, cl_forwardspeed.value, 10, 500);
-	M_Options_PrintCheckbox("          Show Framerate", true, showfps.integer);
-	M_Options_PrintCommand( "       Custom Brightness", true);
-	M_Options_PrintSlider(  "         Game Brightness", true, r_hdr_scenebrightness.value, 1, 4);
-	M_Options_PrintSlider(  "              Brightness", true, v_contrast.value, 1, 2);
-	M_Options_PrintSlider(  "                   Gamma", true, v_gamma.value, 0.5, 3);
-	M_Options_PrintCheckbox("        Toy Soldier Mode", true, r_worldscale.value > 200.0f);
-	M_Options_PrintCommand( "       Customize Effects", true);
-	M_Options_PrintCommand( "         Effects:  Quake", true);
-	M_Options_PrintCommand( "         Effects: Normal", true);
-	M_Options_PrintCommand( "         Effects:   High", true);
-	M_Options_PrintCommand( "      Customize Lighting", true);
-	M_Options_PrintCommand( "        Lighting: Flares", true);
-	M_Options_PrintCommand( "        Lighting: Normal", true);
-	M_Options_PrintCommand( "        Lighting:   High", true);
-	M_Options_PrintCommand( "        Lighting:   Full", true);
-	M_Options_PrintCommand( "             Browse Mods", true);
+	switch (stereoMode)
+	{
+		case 0:
+			M_Options_PrintCommand( "     Stereo Mode: MONO", true);
+			break;
+		case 1:
+			M_Options_PrintCommand( "     Stereo Mode: STEREO", true);
+			break;
+	}
+
+	M_Options_PrintCommand( "   Controller Settings", true);
+	M_Options_PrintCommand( "    Open Quake Console", true);
+	M_Options_PrintCommand( "     Reset to defaults", true);
+	M_Options_PrintCommand( "                      ", true);
+	M_Options_PrintCommand( "   Key/Button Bindings", true);
+	M_Options_PrintCommand( "   Add Bot To Map     ", true);
+
+    switch (cl_positionaltrackingmode.integer)
+    {
+        case 0:
+            M_Options_PrintCommand( " Positional Tracking: Disabled", jni_isPositionTrackingSupported());
+            break;
+        case 1:
+            M_Options_PrintCommand( " Positional Tracking: Camera Translate", jni_isPositionTrackingSupported());
+            break;
+        case 2:
+            M_Options_PrintCommand( " Positional Tracking: Player Movement", jni_isPositionTrackingSupported());
+            break;
+    }
+
+	M_Options_PrintSlider(  " Player Movement Speed", true, cl_forwardspeed.value, 10, 500);
+	M_Options_PrintCheckbox("        Show Framerate", true, showfps.integer);
+	M_Options_PrintCommand( "     Custom Brightness", true);
+	M_Options_PrintSlider(  "       Game Brightness", true, r_hdr_scenebrightness.value, 1, 4);
+	M_Options_PrintSlider(  "            Brightness", true, v_contrast.value, 1, 2);
+	M_Options_PrintSlider(  "                 Gamma", true, v_gamma.value, 0.5, 3);
+	M_Options_PrintCheckbox("      Toy Soldier Mode", true, r_worldscale.value > 200.0f);
+	M_Options_PrintCommand( "     Customize Effects", true);
+	M_Options_PrintCommand( "       Effects:  Quake", true);
+	M_Options_PrintCommand( "       Effects: Normal", true);
+	M_Options_PrintCommand( "       Effects:   High", true);
+	M_Options_PrintCommand( "    Customize Graphics", true);
+	M_Options_PrintCommand( "      Lighting: Flares", true);
+	M_Options_PrintCommand( "      Lighting: Normal", true);
+	M_Options_PrintCommand( "      Lighting:   High", true);
+	M_Options_PrintCommand( "      Lighting:   Full", true);
+	M_Options_PrintCommand( "           Browse Mods", true);
 }
 
 
@@ -1822,9 +1913,7 @@ static void M_Options_Key (int k, int ascii)
 		switch (options_cursor)
 		{
 		case 0:
-			bigScreen = (bigScreen == 2 ? 1 : 2);
-			int newVal = bigScreen == 1 ? 1 : 0;
-			Cvar_SetValueQuick (&cl_headtracking, newVal);
+			stereoMode = 1 - stereoMode;
 			break;
 		case 1:
 			M_Menu_YawPitchControl_f ();
@@ -1840,6 +1929,9 @@ static void M_Options_Key (int k, int ascii)
 		case 5:
 			M_Menu_Keys_f ();
 			break;
+        case 6:
+            Cbuf_AddText("Bot 1");
+            break;
 		case 10:
 			M_Menu_Options_ColorControl_f ();
 			break;
@@ -1959,7 +2051,7 @@ static void M_Menu_Options_Effects_AdjustSliders (int dir)
 	else if (options_effects_cursor == optnum++) Cvar_SetValueQuick (&r_explosionclip, !r_explosionclip.integer);
 	else if (options_effects_cursor == optnum++) Cvar_SetValueQuick (&cl_stainmaps, !cl_stainmaps.integer);
 	else if (options_effects_cursor == optnum++) Cvar_SetValueQuick (&cl_stainmaps_clearonload, !cl_stainmaps_clearonload.integer);
-	else if (options_effects_cursor == optnum++) ;//Cvar_SetValueQuick (&cl_decals, !cl_decals.integer);
+	else if (options_effects_cursor == optnum++) Cvar_SetValueQuick (&cl_decals, !cl_decals.integer);
 	else if (options_effects_cursor == optnum++) Cvar_SetValueQuick (&cl_particles_bulletimpacts, !cl_particles_bulletimpacts.integer);
 	else if (options_effects_cursor == optnum++) Cvar_SetValueQuick (&cl_particles_smoke, !cl_particles_smoke.integer);
 	else if (options_effects_cursor == optnum++) Cvar_SetValueQuick (&cl_particles_sparks, !cl_particles_sparks.integer);
@@ -2012,7 +2104,7 @@ static void M_Options_Effects_Draw (void)
 	M_Options_PrintCheckbox("  Explosion Shell Clip", true, r_explosionclip.integer);
 	M_Options_PrintCheckbox("             Stainmaps", true, cl_stainmaps.integer);
 	M_Options_PrintCheckbox("Onload Clear Stainmaps", true, cl_stainmaps_clearonload.integer);
-	M_Options_PrintCheckbox("                Decals", false, false);//cl_decals.integer);
+	M_Options_PrintCheckbox("                Decals", true, cl_decals.integer);
 	M_Options_PrintCheckbox("        Bullet Impacts", true, cl_particles_bulletimpacts.integer);
 	M_Options_PrintCheckbox("                 Smoke", true, cl_particles_smoke.integer);
 	M_Options_PrintCheckbox("                Sparks", true, cl_particles_sparks.integer);
@@ -2082,7 +2174,7 @@ static void M_Options_Effects_Key (int k, int ascii)
 }
 
 
-#define	OPTIONS_GRAPHICS_ITEMS	20
+#define	OPTIONS_GRAPHICS_ITEMS	21
 
 static int options_graphics_cursor;
 
@@ -2117,7 +2209,8 @@ static void M_Menu_Options_Graphics_AdjustSliders (int dir)
 
 	optnum = 0;
 
-	     if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_coronas, bound(0, r_coronas.value + dir * 0.125, 4));
+	if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&cl_autocentreoffset, bound(-200, cl_autocentreoffset.integer + dir * 5, 200));
+	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_coronas, bound(0, r_coronas.value + dir * 0.125, 4));
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&gl_flashblend, !gl_flashblend.integer);
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_shadow_gloss,							bound(0, r_shadow_gloss.integer + dir, 2));
 	else if (options_graphics_cursor == optnum++) Cvar_SetValueQuick (&r_shadow_realtime_dlight,				!r_shadow_realtime_dlight.integer);
@@ -2154,6 +2247,7 @@ static void M_Options_Graphics_Draw (void)
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, OPTIONS_GRAPHICS_ITEMS - visible)) * 8;
 
+	M_Options_PrintSlider(  "    Lens Centre Offset", true, cl_autocentreoffset.integer, -200, 200);
 	M_Options_PrintSlider(  "      Corona Intensity", true, r_coronas.value, 0, 4);
 	M_Options_PrintCheckbox("      Use Only Coronas", true, gl_flashblend.integer);
 	M_Options_PrintSlider(  "            Gloss Mode", true, r_shadow_gloss.integer, 0, 2);
@@ -2893,9 +2987,9 @@ static void M_Reset_Draw (void)
 	M_Print(8 + 4 * (linelength - 11), 16, "Press y / n");
 }
 
-#define	YAWCONTROL_ITEMS	8
+#define	YAWCONTROL_ITEMS	6
 
-static int yawpitchcontrol_cursor;
+static int controllermode_cursor;
 
 void M_Menu_YawPitchControl_f (void)
 {
@@ -2911,10 +3005,10 @@ static void M_Menu_YawPitchControl_AdjustSliders (int dir)
 
 	optnum = 0;
 
-	     if (yawpitchcontrol_cursor == optnum++) ;
-	else if (yawpitchcontrol_cursor == optnum++) ;
-	else if (yawpitchcontrol_cursor == optnum++) ;
-	else if (yawpitchcontrol_cursor == optnum++ && cl_yawmode.integer == 1)
+	     if (controllermode_cursor == optnum++) ;
+	else if (controllermode_cursor == optnum++) ;
+	else if (controllermode_cursor == optnum++) ;
+	else if (controllermode_cursor == optnum++ && cl_yawmode.integer == 1)
 		{
 			float value = 45.0f;
 			if (dir == 1)
@@ -2946,15 +3040,8 @@ static void M_Menu_YawPitchControl_AdjustSliders (int dir)
 
 			Cvar_SetValueQuick (&cl_comfort, value);
 		}
-	else if (yawpitchcontrol_cursor == optnum++  && cl_yawmode.integer == 2)
+	else if (controllermode_cursor == optnum++  && cl_yawmode.integer == 2)
 		Cvar_SetValueQuick (&sensitivity, bound(1, (sensitivity.value + (dir * 0.25)), 10));
-
-	else if (yawpitchcontrol_cursor == optnum++)
-		Cvar_SetValueQuick (&cl_bob, 0.02 - cl_bob.value);
-	else if (yawpitchcontrol_cursor == optnum++)
-		Cvar_SetValueQuick (&v_kicktime, 0.5 - v_kicktime.value);
-	else if (yawpitchcontrol_cursor == optnum++)
-		Cvar_SetValueQuick (&cl_weaponrecoil, 1 - cl_weaponrecoil.integer);
 }
 
 static void M_Menu_YawPitchControl_Key (int key, int ascii)
@@ -2966,36 +3053,40 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 		break;
 
 	case K_DOWNARROW:
+
 		S_LocalSound ("sound/misc/menu1.wav");
-		if (++yawpitchcontrol_cursor >= YAWCONTROL_ITEMS)
-			yawpitchcontrol_cursor = 0;
+		if (++controllermode_cursor >= YAWCONTROL_ITEMS)
+			controllermode_cursor = 0;
 		break;
 
 	case K_UPARROW:
 		S_LocalSound ("sound/misc/menu1.wav");
-		if (--yawpitchcontrol_cursor < 0)
-			yawpitchcontrol_cursor = YAWCONTROL_ITEMS - 1;
+		if (--controllermode_cursor < 0)
+			controllermode_cursor = YAWCONTROL_ITEMS - 1;
 		break;
 
 	case 'a':
 	case K_LEFTARROW:
-		if (yawpitchcontrol_cursor == 0)
+		if (controllermode_cursor == 1)
 		{
-			int newVal = 1 - cl_headtracking.integer;
-			Cvar_SetValueQuick (&cl_headtracking, newVal);
+			int newControllerMode = cl_controllermode.integer;
+			if (--newControllerMode < 0)
+				newControllerMode = 1;
+			Cvar_SetValueQuick (&cl_controllermode, newControllerMode);
 		}
-		else if (yawpitchcontrol_cursor == 1)
+		else if (controllermode_cursor == 2)
 		{
-			int newPitchMode = cl_pitchmode.integer;
-			if (--newPitchMode < 0)
-				newPitchMode = 2;
-			Cvar_SetValueQuick (&cl_pitchmode, newPitchMode);
+			int newControllerStrafe = cl_controllerstrafe.integer;
+			if (--newControllerStrafe < 0)
+				newControllerStrafe = 1;
+			Cvar_SetValueQuick (&cl_controllerstrafe, newControllerStrafe);
+			ControllerStrafeMode(cl_controllerstrafe.integer);
 		}
-		else if (yawpitchcontrol_cursor == 2)
+		else if (controllermode_cursor == 3)
 		{
 			int newYawMode = cl_yawmode.integer;
 			if (--newYawMode < 0)
-				newYawMode = 3;
+				newYawMode = 2;
 
 			Cvar_SetValueQuick (&cl_yawmode, newYawMode);
 		}
@@ -3005,22 +3096,25 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 
 	case 'd':
 	case K_RIGHTARROW:
-		if (yawpitchcontrol_cursor == 0)
+		if (controllermode_cursor == 1)
 		{
-			int newVal = 1 - cl_headtracking.integer;
-			Cvar_SetValueQuick (&cl_headtracking, newVal);
+			int newControllerMode = cl_controllermode.integer;
+			if (++newControllerMode > 1)
+				newControllerMode = 0;
+			Cvar_SetValueQuick (&cl_controllermode, newControllerMode);
 		}
-		else if (yawpitchcontrol_cursor == 1)
+		else if (controllermode_cursor == 2)
 		{
-			int newPitchMode = cl_pitchmode.integer;
-			if (++newPitchMode > 2)
-				newPitchMode = 0;
-			Cvar_SetValueQuick (&cl_pitchmode, newPitchMode);
+			int newControllerStrafe = cl_controllerstrafe.integer;
+			if (++newControllerStrafe > 1)
+				newControllerStrafe = 0;
+			Cvar_SetValueQuick (&cl_controllerstrafe, newControllerStrafe);
+			ControllerStrafeMode(cl_controllerstrafe.integer);
 		}
-		else if (yawpitchcontrol_cursor == 2)
+		else if (controllermode_cursor == 3)
 		{
 			int newYawMode = cl_yawmode.integer;
-			if (++newYawMode > 3)
+			if (++newYawMode > 2)
 				newYawMode = 0;
 
 			Cvar_SetValueQuick (&cl_yawmode, newYawMode);
@@ -3046,49 +3140,32 @@ static void M_Menu_YawPitchControl_Draw (void)
 	M_DrawPic((320-p->width)/2, 4, "gfx/p_option");
 
 	optnum = 0;
-	optcursor = yawpitchcontrol_cursor;
+	optcursor = controllermode_cursor;
 	visible = (int)((menu_height - 32) / 8);
 	opty = 32 - bound(0, optcursor - (visible >> 1), max(0, YAWCONTROL_ITEMS - visible)) * 8;
 
-	if (cl_headtracking.integer == 0)
-		M_Options_PrintCommand(" Sensor Headtracking:   Disabled", true);
-	else
-		M_Options_PrintCommand(" Sensor Headtracking:   Enabled", true);
+	M_Options_PrintCommand(" Sensor Headtracking:       Enabled", false);
 
-	if (cl_pitchmode.integer == 0)
-		M_Options_PrintCommand("          Pitch Mode:   Head-tracked Only", true);
-	else if (cl_pitchmode.integer == 1)
-		M_Options_PrintCommand("          Pitch Mode:   Right-Stick (inverted)", true);
-	else if (cl_pitchmode.integer == 2)
-		M_Options_PrintCommand("          Pitch Mode:   Right-Stick", true);
+	if (cl_controllermode.integer == 1)
+		M_Options_PrintCommand(" Controller Mode:           Use 3DOF Controller (default)", true);
+	else if (cl_controllermode.integer == 0)
+		M_Options_PrintCommand(" Controller Mode:           Do Not Use 3DOF Controller", true);
+
+	if (cl_controllerstrafe.integer == 1)
+		M_Options_PrintCommand(" 3DOF Controller Movement: Enabled", (cl_controllermode.integer == 1));
+	else if (cl_controllerstrafe.integer == 0)
+		M_Options_PrintCommand(" 3DOF Controller Movement: Disabled", (cl_controllermode.integer == 1));
 
 	if (cl_yawmode.integer == 0)
-		M_Options_PrintCommand("          Yaw Mode:     Swivel-Chair", true);
+		M_Options_PrintCommand(" Yaw Mode:     Swivel-Chair (default)", (cl_controllermode.integer == 0));
 	else if (cl_yawmode.integer == 1)
-		M_Options_PrintCommand("          Yaw Mode:     Comfort-Mode", true);
-	else if (cl_yawmode.integer == 2)
-  		M_Options_PrintCommand("          Yaw Mode:     Stick-Yaw", true);
- 	else
- 		M_Options_PrintCommand("          Yaw Mode:     Look-To-Turn", true);
+		M_Options_PrintCommand(" Yaw Mode:     Comfort-Mode", (cl_controllermode.integer == 0));
+	else
+		M_Options_PrintCommand(" Yaw Mode:     Stick-Yaw", (cl_controllermode.integer == 0));
 
-	M_Options_PrintSlider(     "Comfort Mode Turn Angle", cl_yawmode.integer == 1, cl_comfort.value, 30, 180);
-	M_Options_PrintSlider(     "   Stick Yaw Turn Speed", cl_yawmode.integer == 2, sensitivity.value, 1, 10);
-
-	if (cl_bob.value == 0.0)
-  		M_Options_PrintCommand("          Head-Bob:     Disabled", true);
-  	else
-		M_Options_PrintCommand("          Head-Bob:     Enabled", true);
-	if (v_kicktime.value == 0.0)
-  		M_Options_PrintCommand("     Damage Recoil:     Disabled", true);
-  	else
-		M_Options_PrintCommand("     Damage Recoil:     Enabled", true);
-	if (cl_weaponrecoil.integer == 0)
-  		M_Options_PrintCommand("     Weapon Recoil:     Disabled", true);
-  	else
-		M_Options_PrintCommand("     Weapon Recoil:     Enabled", true);
-
-
-	if (cl_yawmode.integer == 2)
+	M_Options_PrintSlider(  "Comfort Mode Turn Angle", (cl_yawmode.integer == 1) && (cl_controllermode.integer == 0), cl_comfort.value, 30, 180);
+	M_Options_PrintSlider(  "   Stick Yaw Turn Speed", (cl_yawmode.integer == 2) && (cl_controllermode.integer == 0), sensitivity.value, 1, 10);
+	if (cl_yawmode.integer >= 2)
 	{
 		M_Options_PrintCommand(" ", true);
 		M_Options_PrintCommand(" ", true);
@@ -3484,14 +3561,24 @@ void M_Menu_Credits_f (void)
 }
 
 
-static const char *m_credits_message[4];
+static const char *m_credits_message[11];
 static int M_CreditsMessage(const char *line1, const char *line2,
-		const char *line3)
+		const char *line3, const char *line4,
+		const char *line5, const char *line6,
+		const char *line7, const char *line8,
+							const char *line9, const char *line10)
 {
 	int line = 0;
 	m_credits_message[line++] = line1;
 	m_credits_message[line++] = line2;
 	m_credits_message[line++] = line3;
+	m_credits_message[line++] = line4;
+	m_credits_message[line++] = line5;
+	m_credits_message[line++] = line6;
+	m_credits_message[line++] = line7;
+	m_credits_message[line++] = line8;
+	m_credits_message[line++] = line9;
+	m_credits_message[line++] = line10;
 	m_credits_message[line++] = NULL;
 	return 1;
 }
@@ -3499,9 +3586,27 @@ static int M_CreditsMessage(const char *line1, const char *line2,
 static void M_Credits_Draw (void)
 {
 	M_CreditsMessage(
-			"   -=  QUAKE-GVR "QGVR_VERSION" =-   ",
-			"",
-			"   ** Press Any Button **  ");
+            "   QQQ QQQ       QQQQQQ    QQQ     QQQ  QQQQQQQQ ",
+			" QQQQ   QQQQ   QQQQ  QQQQ  QQQ     QQQ  QQQ   QQQQ ",
+			" QQQ     QQQ   QQQ    QQQ  QQQ     QQQ  QQQ    QQQ ",
+			" QQQ     QQQ   QQQ         QQQQ   QQQQ  QQQ   QQQQ ",
+			" QQQ  QQ QQQ   QQQ  QQQQQ   QQQQ QQQQ   QQQQQQQQ",
+			" QQQQ QQ QQQ   QQQ    QQQ    QQQoQQQ    QQQ QQQQ  ",
+			"   QQQQQQQQ    QQQQ  QQQQ     QQQQQ     QQQ  QQQQ  ",
+			"     QQQ        QQQQQQQQ       QQQ      QQQ   QQQQ ",
+   			"      Q                                     ",
+	  		"      Q                                     ");
+
+		/*	"  .d88 88b.     .d8888b.   888     888  8888888b.",
+			" 888P   Y888   d88P  Y88b  888     888  888   Y88b ",
+			" 888     888   888    888  888     888  888    888 ",
+			" 888     888   888         Y88b   d88P  888   d88P ",
+			" 888  8Y 888   888  88888   Y88b d88P   8888888P",
+			" Y88b Y8 88P   888    888    Y88o88P    888 T88b  ",
+			"   88888888    Y88b  d88P     Y888P     888  T88b  ",
+			"     Y8b        Y8888P88       Y8P      888   T88b ",
+   			"      8                                     ",
+	  		"      8                                     ");*/
 
 	int i, l, linelength, firstline, lastline, lines;
 	for (i = 0, linelength = 0, firstline = 9999, lastline = -1;m_credits_message[i];i++)
@@ -3520,7 +3625,7 @@ static void M_Credits_Draw (void)
 	M_Background(linelength * 8 + 16, lines * 8 + 16);
 	M_DrawTextBox(0, -48, linelength, lines); //this is less obtrusive than hacking up the M_DrawTextBox function
 	for (i = 0, l = firstline;i < lines;i++, l++)
-		M_Print(8 + 4 * (linelength - strlen(m_credits_message[l])), -40 + 8 * i, m_credits_message[l]);
+		M_Print(12 /*+ 4 * (linelength - strlen(m_credits_message[l]))*/, -40 + 8 * i, m_credits_message[l]);
 }
 
 
@@ -3553,12 +3658,6 @@ static int M_QuitMessage(const char *line1, const char *line2, const char *line3
 
 static int M_ChooseQuitMessage(int request)
 {
-	if (m_missingdata)
-	{
-		// frag related quit messages are pointless for a fallback menu, so use something generic
-		if (request-- == 0) return M_QuitMessage("Are you sure you want to quit?","Press Y to quit, N to stay",NULL,NULL,NULL,NULL,NULL,NULL);
-		return 0;
-	}
 	switch (gamemode)
 	{
 	case GAME_NORMAL:
@@ -4776,10 +4875,8 @@ static void M_ServerList_Draw (void)
 	char vabuf[1024];
 
 	// use as much vertical space as available
-	if (gamemode == GAME_TRANSFUSION)
-		M_Background(640, vid_conheight.integer - 80);
-	else
-		M_Background(640, vid_conheight.integer);
+	M_Background(480, 400);
+
 	// scroll the list as the cursor moves
 	ServerList_GetPlayerStatistics(&numplayers, &maxplayers);
 	s = va(vabuf, sizeof(vabuf), "%i/%i masters %i/%i servers %i/%i players", masterreplycount, masterquerycount, serverreplycount, serverquerycount, numplayers, maxplayers);

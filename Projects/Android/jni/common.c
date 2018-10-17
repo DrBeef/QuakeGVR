@@ -28,8 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "utf8lib.h"
 
-#define HAVE_SNPRINTF
-#define PREFER_PORTABLE_SNPRINTF
 #include "snprintf.h"
 
 cvar_t registered = {0, "registered","0", "indicates if this is running registered quake (whether gfx/pop.lmp was found)"};
@@ -1639,7 +1637,7 @@ char *portable_va(char *buf, size_t buflen, const char *format, ...)
 	va_list argptr;
 
 	va_start (argptr, format);
-	portable_snprintf (buf, buflen, format,argptr);
+	portable_vsnprintf(buf, buflen, format,argptr);
 	va_end (argptr);
 
 	return buf;

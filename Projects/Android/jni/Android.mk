@@ -6,12 +6,11 @@ LOCAL_PATH:= $(call my-dir)
 #--------------------------------------------------------
 include $(CLEAR_VARS)
 
-LOCAL_MODULE			:= quakegvr
 LOCAL_CFLAGS			:= -std=c99
-LOCAL_SRC_FILES			:= ../../../Src/QuakeGVR_NativeActivity.c
+LOCAL_MODULE			:= quakegvr
+LOCAL_SRC_FILES			:= ../../../Src/QuakeGVR_SurfaceView.c
 LOCAL_LDLIBS			:= -llog -landroid -lGLESv3 -lEGL		# include default libraries
 
-LOCAL_STATIC_LIBRARIES	:= systemutils libovrkernel
 LOCAL_SHARED_LIBRARIES	:= vrapi
 
 # CD objects
@@ -118,4 +117,3 @@ LOCAL_SRC_FILES += $(SRC_ANDROID)
 include $(BUILD_SHARED_LIBRARY)
 
 $(call import-module,VrApi/Projects/AndroidPrebuilt/jni)
-$(call import-module,VrAppSupport/SystemUtils/Projects/AndroidPrebuilt/jni)

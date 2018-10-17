@@ -47,6 +47,7 @@ state bit 2 is edge triggered on the down to up transition
 ===============================================================================
 */
 
+extern float gunangles[3];
 
 kbutton_t	in_mlook, in_klook;
 kbutton_t	in_left, in_right, in_forward, in_back;
@@ -436,14 +437,14 @@ cvar_t cl_sidespeed = {CVAR_SAVE, "cl_sidespeed","200","strafe movement speed"};
 cvar_t cl_movespeedkey = {CVAR_SAVE, "cl_movespeedkey","2.0","how much +speed multiplies keyboard movement speed"};
 cvar_t cl_movecliptokeyboard = {0, "cl_movecliptokeyboard", "0", "if set to 1, any move is clipped to the nine keyboard states; if set to 2, only the direction is clipped, not the amount"};
 
-cvar_t cl_yawmode = {CVAR_SAVE, "cl_yawmode","0","0 = swivel-chair, 1 = comfort, 2 = stick, 3 = look to turn"};
-cvar_t cl_pitchmode = {CVAR_SAVE, "cl_pitchmode","0","0 = locked to hmd, 1 = free, 2 = free (inverted)"};
+cvar_t cl_yawmode = {CVAR_SAVE, "cl_yawmode","0","0 = swivel-chair, 1 = comfort, 2 = stick"};
+cvar_t cl_controllermode = {CVAR_SAVE, "cl_controllermode","1","0 = Don't Use Daydream Controller, 1 = Use Daydream Controller"};
+cvar_t cl_controllerstrafe = {CVAR_SAVE, "cl_controllerstrafe","1","0 = Disable Daydream Controller Strafing, 1 = Use Daydream Controller Strafing"};
 cvar_t cl_comfort = {CVAR_SAVE, "cl_comfort","45.0","angle by which comfort mode adjusts yaw"};
 cvar_t cl_yawspeed = {CVAR_SAVE, "cl_yawspeed","150","keyboard yaw turning speed"};
 cvar_t cl_pitchspeed = {CVAR_SAVE, "cl_pitchspeed","150","keyboard pitch turning speed"};
 cvar_t cl_yawmult = {CVAR_SAVE, "cl_yawmult","1.0","Multiplier for yaw (leave at 1.0)"};
 cvar_t cl_pitchmult = {CVAR_SAVE, "cl_pitchmult","1.0","Multiplier for yaw (leave at 1.0)"};
-cvar_t cl_headtracking = {CVAR_SAVE, "cl_headtracking","1","Whether head tracking using sensor is enabled"};
 
 cvar_t cl_anglespeedkey = {CVAR_SAVE, "cl_anglespeedkey","1.5","how much +speed multiplies keyboard turning speed"};
 
@@ -460,7 +461,7 @@ cvar_t cl_movement_wallfriction = {0, "cl_movement_wallfriction", "1", "how fast
 cvar_t cl_movement_waterfriction = {0, "cl_movement_waterfriction", "-1", "how fast you slow down (should match sv_waterfriction), if less than 0 the cl_movement_friction variable is used instead"};
 cvar_t cl_movement_edgefriction = {0, "cl_movement_edgefriction", "1", "how much to slow down when you may be about to fall off a ledge (should match edgefriction)"};
 cvar_t cl_movement_stepheight = {0, "cl_movement_stepheight", "18", "how tall a step you can step in one instant (should match sv_stepheight)"};
-cvar_t cl_movement_accelerate = {0, "cl_movement_accelerate", "10", "how fast you accelerate (should match sv_accelerate)"};
+cvar_t cl_movement_accelerate = {0, "cl_movement_accelerate", "1000", "how fast you accelerate (should match sv_accelerate)"};
 cvar_t cl_movement_airaccelerate = {0, "cl_movement_airaccelerate", "-1", "how fast you accelerate while in the air (should match sv_airaccelerate), if less than 0 the cl_movement_accelerate variable is used instead"};
 cvar_t cl_movement_wateraccelerate = {0, "cl_movement_wateraccelerate", "-1", "how fast you accelerate while in water (should match sv_wateraccelerate), if less than 0 the cl_movement_accelerate variable is used instead"};
 cvar_t cl_movement_jumpvelocity = {0, "cl_movement_jumpvelocity", "270", "how fast you move upward when you begin a jump (should match the quakec code)"};
@@ -485,6 +486,8 @@ cvar_t cl_nodelta = {0, "cl_nodelta", "0", "disables delta compression of non-pl
 cvar_t cl_csqc_generatemousemoveevents = {0, "cl_csqc_generatemousemoveevents", "1", "enables calls to CSQC_InputEvent with type 2, for compliance with EXT_CSQC spec"};
 
 extern cvar_t v_flipped;
+
+qboolean headtracking = true;
 
 /*
 ================
@@ -1835,8 +1838,13 @@ void CL_SendMove(void)
 	cl.cmd.buttons = bits;
 	cl.cmd.impulse = in_impulse;
 
-	// set viewangles
-	VectorCopy(cl.viewangles, cl.cmd.viewangles);
+	// set angles
+	if (cl_controllermode.integer == 0) {
+		VectorCopy(cl.viewangles, cl.cmd.viewangles);
+	} else {
+		//Use gun angles - Took me bloody ages to find this line!!
+		VectorCopy(gunangles, cl.cmd.viewangles);
+	}
 
 	msecdelta = (int)(floor(cl.cmd.time * 1000) - floor(cl.movecmd[1].time * 1000));
 	cl.cmd.msec = (unsigned char)bound(0, msecdelta, 255);
@@ -2250,12 +2258,12 @@ void CL_InitInput (void)
 	Cmd_AddCommand ("register_bestweapon", IN_BestWeapon_Register_f, "(for QC usage only) change weapon parameters to be used by bestweapon; stuffcmd this in ClientConnect");
 
 	Cvar_RegisterVariable(&cl_yawmode);
-	Cvar_RegisterVariable(&cl_pitchmode);
+	Cvar_RegisterVariable(&cl_controllermode);
+	Cvar_RegisterVariable(&cl_controllerstrafe);
 	Cvar_RegisterVariable(&cl_comfort);
 	Cvar_RegisterVariable(&cl_yawspeed);
 	Cvar_RegisterVariable(&cl_pitchmult);
 	Cvar_RegisterVariable(&cl_yawmult);
-	Cvar_RegisterVariable(&cl_headtracking);
 
 	Cvar_RegisterVariable(&cl_movecliptokeyboard);
 	Cvar_RegisterVariable(&cl_movement);

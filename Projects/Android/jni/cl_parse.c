@@ -4266,7 +4266,7 @@ void CL_Parse_Init(void)
 	Cmd_AddCommand("stopul", QW_CL_StopUpload, "aborts current upload (screenshot for example)");
 	Cmd_AddCommand("skins", QW_CL_Skins_f, "downloads missing qw skins from server");
 	Cmd_AddCommand("changing", QW_CL_Changing_f, "sent by qw servers to tell client to wait for level change");
-	Cmd_AddCommand("cl_begindownloads", CL_BeginDownloads_f, "used internally by darkplaces client while connecting (causes loading of models and sounds or triggers downloads for missing ones)");
+	Cmd_AddCommand("cl_begindownloads", CL_BeginDownloads_f, "used internally by qvr client while connecting (causes loading of models and sounds or triggers downloads for missing ones)");
 	Cmd_AddCommand("cl_downloadbegin", CL_DownloadBegin_f, "(networking) informs client of download file information, client replies with sv_startsoundload to begin the transfer");
 	Cmd_AddCommand("stopdownload", CL_StopDownload_f, "terminates a download");
 	Cmd_AddCommand("cl_downloadfinished", CL_DownloadFinished_f, "signals that a download has finished and provides the client with file size and crc to check its integrity");

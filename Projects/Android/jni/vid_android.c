@@ -20,14 +20,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 #include <signal.h>
-#include <EGL/egl.h>
+//#include <EGL/egl.h>
 #include <stdbool.h>
 
 int cl_available = true;
 
-static long oldtime = 0;
+static long oldtime=0;
 
 qboolean vid_supportrefreshrate = false;
+extern int vrMode;
+
+void Host_BeginFrame(bool progressTime);
+void Host_Frame(int eye, int x, int y);
+void Host_EndFrame();
 
 void VID_Shutdown(void)
 {
@@ -171,7 +176,7 @@ void GLES_Init(void)
 		gl_extensions = "";
 	if (!gl_platformextensions)
 		gl_platformextensions = "";
-	
+
 	Con_Printf("GL_VENDOR: %s\n", gl_vendor);
 	Con_Printf("GL_RENDERER: %s\n", gl_renderer);
 	Con_Printf("GL_VERSION: %s\n", gl_version);
@@ -443,29 +448,24 @@ r_glsl_permutation_t;
 extern r_glsl_permutation_t *r_glsl_permutation;
 extern void android_kostyl();
 
-void QGVR_BeginFrame()
+void QC_BeginFrame(bool progressTime)
 {
 	scndswp=0;
-	if (r_glsl_permutation!=0)
-	{
-//	glUseProgram(r_glsl_permutation->program);
-//	R_Mesh_TexBind(r_glsl_permutation->tex_Texture_First,0);
-//	android_kostyl();//from Ð¯USSIAÐ˜ "ÐšÐ¾Ñ�Ñ‚Ñ‹Ð»ÑŒ" - "A dirty hack"
-	}
-	Host_BeginFrame();
+
+	Host_BeginFrame(progressTime);
 }
 
-void QGVR_DrawFrame(int eye)
+void QC_DrawFrame(int eye, int x, int y)
 {
-	Host_Frame(eye);
+	Host_Frame(eye, x, y);
 }
 
-void QGVR_EndFrame()
+void QC_EndFrame()
 {
 	Host_EndFrame();
 }
 
-void QGVR_KeyEvent(int state,int key,int character)
+void QC_KeyEvent(int state,int key,int character)
 {
 	Key_Event(key, character, state);
 }
@@ -473,29 +473,16 @@ void QGVR_KeyEvent(int state,int key,int character)
 float analogx=0.0f;
 float analogy=0.0f;
 int analogenabled=0;
-void QGVR_Analog(int enable,float x,float y)
+void QC_Analog(int enable,float x,float y)
 {
 	analogenabled=enable;
 	analogx=x;
 	analogy=y;
 }
 
-void QGVR_MotionEvent(float delta, float dx, float dy)
+void QC_MotionEvent(float delta, float dx, float dy)
 {
 	static bool canAdjust = true;
-
-	//Pitch lock?
-	if (cl_pitchmode.integer != 0) {
-
-		float dir = 1.0f;
-		if (cl_pitchmode.integer == 1)
-			dir = -1.0f;
-
-		in_mouse_y += (dy * delta * dir);
-		in_windowmouse_y += (dy * delta * dir);
-		if (in_windowmouse_y < 0) in_windowmouse_y = 0;
-		if (in_windowmouse_y > andrh - 1) in_windowmouse_y = andrh - 1;
-	}
 
 	//If not in vr mode, then always use yaw stick control
 	if (cl_yawmode.integer == 2)
@@ -534,68 +521,35 @@ static struct {
 
 void IN_Move(void)
 {
-	if (cl_pitchmode.integer != 0) {
-		cl.viewangles[PITCH] -= move_event.previous_pitch;
-		cl.viewangles[PITCH] += move_event.pitch;
-	}
-	else {
-		cl.viewangles[PITCH] = move_event.pitch;
+	cl.viewangles[PITCH] = move_event.pitch;
+
+	if (cl_yawmode.integer == 0 ||
+		cl_controllermode.integer == 1) {
+		cl.viewangles[YAW] = move_event.yaw;
+	} else
+	if (cl_yawmode.integer == 1) {
+		cl.viewangles[YAW] += move_event.yaw;
+	} else
+	{
+		cl.viewangles[YAW] -= move_event.previous_yaw;
+		cl.viewangles[YAW] += move_event.yaw;
 	}
 
-	if (cl_yawmode.integer != 1)
-		cl.viewangles[YAW] -= move_event.previous_yaw;
-	cl.viewangles[YAW] += move_event.yaw ;
 	cl.viewangles[ROLL] = move_event.roll ;
 }
 
-void QGVR_MoveEvent(float yaw, float pitch, float roll)
+void QC_MoveEvent(float yaw, float pitch, float roll)
 {
-	if (cl_headtracking.integer == 0)
-	{
-		yaw =	0;
-		pitch =	0;
-		roll =	0;
-	}
-
 	move_event.previous_yaw = move_event.yaw;
 	move_event.previous_pitch = move_event.pitch;
 	move_event.yaw = yaw * cl_yawmult.value;
 	move_event.pitch = pitch * cl_pitchmult.value;
 	move_event.roll = roll;
-
-	if (cl_yawmode.integer == 3)
- 	{
- 		long t=Sys_Milliseconds();
- 		long delta=t-oldtime;
- 		oldtime=t;
- 		if (delta>1000)
- 			delta=1000;
-
- 		float engage_angle = 45.0f;
-
- 		float dx = yaw;
- 		if (yaw > engage_angle || yaw < -engage_angle) {
- 			dx = (yaw > engage_angle) ? dx-engage_angle : dx+engage_angle;
- 			dx /= -10.0f;
- 		}
- 		else {
- 			dx = 0.0f;
- 		}
-
- 		in_mouse_x+=(dx*delta);
- 		in_windowmouse_x += (dx*delta);
- 		if (in_windowmouse_x<0) in_windowmouse_x=0;
- 		if (in_windowmouse_x>andrw-1) in_windowmouse_x=andrw-1;
- 	}
 }
 
-void QGVR_SetResolution(int width, int height)
+void QC_SetResolution(int width, int height)
 {
 	andrw=width;
 	andrh=height;
-}
-
-void QGVR_OGLRestart()
-{
-VID_Restart_f();
+	VID_Restart_f();
 }
