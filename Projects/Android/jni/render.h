@@ -613,6 +613,7 @@ void R_Shadow_EditLights_DrawSelectedLightProperties(void);
 void R_DecalSystem_Reset(decalsystem_t *decalsystem);
 void R_Shadow_UpdateBounceGridTexture(void);
 void R_DrawLightningBeams(void);
+void R_DrawLaserSights(void);
 void VM_CL_AddPolygonsToMeshQueue(struct prvm_prog_s *prog);
 void R_DrawPortals(void);
 void R_DrawModelShadows(int fbo, rtexture_t *depthtexture, rtexture_t *colortexture);
@@ -637,6 +638,7 @@ void R_Explosion_Init(void);
 void gl_backend_init(void);
 void Sbar_Init(void);
 void R_LightningBeams_Init(void);
+void R_LaserSights_Init(void);
 void Mod_RenderInit(void);
 void Font_Init(void);
 

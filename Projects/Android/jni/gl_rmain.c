@@ -121,6 +121,8 @@ cvar_t r_fakelight = {0, "r_fakelight","0", "render 'fake' lighting instead of r
 cvar_t r_fakelight_intensity = {0, "r_fakelight_intensity","0.75", "fakelight intensity modifier"};
 #define FAKELIGHT_ENABLED (r_fakelight.integer >= 2 || (r_fakelight.integer && r_refdef.scene.worldmodel && !r_refdef.scene.worldmodel->lit))
 
+cvar_t r_lasersight = {CVAR_SAVE, "r_lasersight", "0","Whether laser sight aim is used"};
+
 cvar_t r_wateralpha = {CVAR_SAVE, "r_wateralpha","1", "opacity of water polygons"};
 cvar_t r_dynamic = {CVAR_SAVE, "r_dynamic","1", "enables dynamic lights (rocket glow and such)"};
 cvar_t r_fullbrights = {CVAR_SAVE, "r_fullbrights", "1", "enables glowing pixels in quake textures (changes need r_restart to take effect)"};
@@ -4264,6 +4266,7 @@ void GL_Main_Init(void)
 	Cvar_RegisterVariable(&r_speeds);
 	Cvar_RegisterVariable(&r_fullbrights);
 	Cvar_RegisterVariable(&r_wateralpha);
+	Cvar_RegisterVariable(&r_lasersight);
 	Cvar_RegisterVariable(&r_dynamic);
 	Cvar_RegisterVariable(&r_fakelight);
 	Cvar_RegisterVariable(&r_fakelight_intensity);
@@ -4390,6 +4393,7 @@ void Render_Init(void)
 	R_Particles_Init();
 	R_Explosion_Init();
 	R_LightningBeams_Init();
+	R_LaserSights_Init();
 	Mod_RenderInit();
 }
 
@@ -7439,6 +7443,15 @@ void R_RenderScene(int fbo, rtexture_t *depthtexture, rtexture_t *colortexture)
 		R_DrawLightningBeams();
 		if (r_timereport_active)
 			R_TimeReport("lightning");
+
+        qboolean cldead = (cl.stats[STAT_HEALTH] <= 0 && cl.stats[STAT_HEALTH] != -666 && cl.stats[STAT_HEALTH] != -2342);
+        int activeWeapon = cl.stats[STAT_ACTIVEWEAPON];
+        if (!cl.intermission && !cls.demoplayback && r_lasersight.integer && !cldead && activeWeapon != IT_AXE && activeWeapon != IT_GRENADE_LAUNCHER)
+		{
+			R_DrawLaserSights();
+			if (r_timereport_active)
+				R_TimeReport("lasersights");
+		}
 	}
 
 	if (cl.csqc_loaded)
@@ -7528,7 +7541,7 @@ static const unsigned short bboxelements[36] =
 	1, 0, 2, 1, 2, 3,
 };
 
-static void R_DrawBBoxMesh(vec3_t mins, vec3_t maxs, float cr, float cg, float cb, float ca)
+void R_DrawBBoxMesh(vec3_t mins, vec3_t maxs, float cr, float cg, float cb, float ca)
 {
 	int i;
 	float *v, *c, f1, f2, vertex3f[8*3], color4f[8*4];
@@ -7565,6 +7578,45 @@ static void R_DrawBBoxMesh(vec3_t mins, vec3_t maxs, float cr, float cg, float c
 	R_Mesh_ResetTextureState();
 	R_SetupShader_Generic_NoTexture(false, false);
 	R_Mesh_Draw(0, 8, 0, 12, NULL, NULL, 0, bboxelements, NULL, 0);
+}
+
+void R_DrawBLineMesh(vec3_t mins, vec3_t maxs, float thickness, float cr, float cg, float cb, float ca)
+{
+    int i;
+    float *v, *c, f1, f2, vertex3f[8*3], color4f[8*4];
+
+    RSurf_ActiveWorldEntity();
+
+    GL_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    GL_DepthMask(false);
+    GL_DepthRange(0, 1);
+    GL_PolygonOffset(r_refdef.polygonfactor, r_refdef.polygonoffset);
+//	R_Mesh_ResetTextureState();
+
+    vertex3f[ 0] = mins[0];vertex3f[ 1] = mins[1];vertex3f[ 2] = mins[2]; // left bottom front
+    vertex3f[ 3] = mins[0]+thickness;vertex3f[ 4] = mins[1];vertex3f[ 5] = mins[2]; // right bottom front
+    vertex3f[ 6] = mins[0];vertex3f[ 7] = mins[1]+thickness;vertex3f[ 8] = mins[2]; // left top front
+    vertex3f[ 9] = mins[0]+thickness;vertex3f[10] = mins[1]+thickness;vertex3f[11] = mins[2]; // right top front
+    vertex3f[12] = maxs[0]+thickness;vertex3f[13] = maxs[1]+thickness;vertex3f[14] = maxs[2]; // left bottom back
+    vertex3f[15] = maxs[0];vertex3f[16] = maxs[1]+thickness;vertex3f[17] = maxs[2]; // right bottom back
+    vertex3f[18] = maxs[0]+thickness;vertex3f[19] = maxs[1];vertex3f[20] = maxs[2]; // left top back
+    vertex3f[21] = maxs[0];vertex3f[22] = maxs[1];vertex3f[23] = maxs[2]; // right top back
+    R_FillColors(color4f, 8, cr, cg, cb, ca);
+    if (r_refdef.fogenabled)
+    {
+        for (i = 0, v = vertex3f, c = color4f;i < 8;i++, v += 3, c += 4)
+        {
+            f1 = RSurf_FogVertex(v);
+            f2 = 1 - f1;
+            c[0] = c[0] * f1 + r_refdef.fogcolor[0] * f2;
+            c[1] = c[1] * f1 + r_refdef.fogcolor[1] * f2;
+            c[2] = c[2] * f1 + r_refdef.fogcolor[2] * f2;
+        }
+    }
+    R_Mesh_PrepareVertices_Generic_Arrays(8, vertex3f, color4f, NULL);
+    R_Mesh_ResetTextureState();
+    R_SetupShader_Generic_NoTexture(false, false);
+    R_Mesh_Draw(0, 8, 0, 12, NULL, NULL, 0, bboxelements, NULL, 0);
 }
 
 static void R_DrawEntityBBoxes_Callback(const entity_render_t *ent, const rtlight_t *rtlight, int numsurfaces, int *surfacelist)

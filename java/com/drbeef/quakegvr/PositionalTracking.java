@@ -158,7 +158,8 @@ public class PositionalTracking  implements Runnable {
 
 	public synchronized void setStatus(Status status) {
 		//Can't change from initialise state externally
-		if (this.status.ordinal() > Status.INITIALISE.ordinal())
+		if (this.status.ordinal() > Status.INITIALISE.ordinal() &&
+				this.status != Status.STOPPED)
 		{
 			this.status = status;
 
@@ -190,7 +191,7 @@ public class PositionalTracking  implements Runnable {
 			InitializeEGL();
 		}
 
-		while (true)
+		do
 		{
 			Status status = getStatus();
 
@@ -206,16 +207,8 @@ public class PositionalTracking  implements Runnable {
 				} else if (availability == SUPPORTED_INSTALLED) {
 					setArCoreSupported();
 					this.status = Status.INITIALISE;
-					if (!m_async)
-					{
-						break;
-					}
 				} else { // Unsupported or unknown.
 					this.status = Status.STOP;
-					if (!m_async)
-					{
-						break;
-					}
 				}
 			}
 			else if (status == Status.INITIALISE)
@@ -241,19 +234,25 @@ public class PositionalTracking  implements Runnable {
 			}
 			else if (status == Status.DESTROY)
 			{
-				session.pause();
-				session = null;
-				this.status = Status.STOP;
+				if (session != null) {
+					session.pause();
+					session = null;
+					this.status = Status.STOP;
+				}
 			}
 			else if (status == Status.PAUSE)
 			{
-				session.pause();
+				if (session != null) {
+					session.pause();
+				}
 				setStatus(Status.PAUSED);
 			}
 			else if (status == Status.RESUME)
 			{
 				try {
-					session.resume();
+					if (session != null) {
+						session.resume();
+					}
 					setStatus(Status.RUNNING);
 				} catch (CameraNotAvailableException e) {
 					Log.e(TAG, "Camera not available. Please restart the app");
@@ -263,19 +262,16 @@ public class PositionalTracking  implements Runnable {
 			}
 			else if (status == Status.STOP)
 			{
-				if (m_async) {
-					DeleteSurfaceEGL(mEglSurface);
+				if (session != null) {
+					if (m_async) {
+						DeleteSurfaceEGL(mEglSurface);
+					}
 				}
 				this.status = Status.STOPPED;
 				break;
 			}
-
-			//Only pass through here once
-			if (!m_async)
-			{
-				break;
-			}
 		}
+		while (m_async);
 
 		return;
 	}

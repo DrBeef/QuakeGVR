@@ -115,6 +115,7 @@ cvar_t chase_pitchangle = {CVAR_SAVE, "chase_pitchangle", "55", "chase cam pitch
 float	v_dmg_time, v_dmg_roll, v_dmg_pitch;
 
 float gunangles[3];
+float gunorg[3];
 float worldPosition[3];
 extern qboolean rightHanded;
 
@@ -479,7 +480,6 @@ static void highpass3_limited(vec3_t value, vec_t fracx, vec_t limitx, vec_t fra
 void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewangles, qboolean teleported, qboolean clonground, qboolean clcmdjump, float clstatsviewheight, qboolean cldead, qboolean clintermission, const vec3_t clvelocity)
 {
 	float vieworg[3], viewangles[3], smoothtime;
-	float gunorg[3];
 	matrix4x4_t tmpmatrix;
 	
 	static float viewheightavg;
@@ -563,14 +563,11 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 		viewheightavg = viewheightavg * (1 - viewheight) + clstatsviewheight * viewheight;
 		vieworg[2] += viewheightavg;
 
-		//Modify view origin with our positional offsets (multiplied by our world scale
-		vieworg[2] += (worldPosition[1] * r_worldscale.value); // Up/Down
+		if (cl_positionaltrackingmode.integer == 2) {
+			//Modify view origin with our positional offsets (multiplied by our world scale
+			vieworg[2] += (worldPosition[1] * r_worldscale.value); // Up/Down
+		}
 
-		//Camera based positional movement
-		if (cl_positionaltrackingmode.integer == 1) {
-            vieworg[1] += (worldPosition[0] * r_worldscale.value); // Left/Right
-            vieworg[0] += (worldPosition[2] * r_worldscale.value); // Forward/Back
-        }
 
 		if (chase_active.value)
 		{
@@ -890,6 +887,19 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 			viewangles[2] += v_idlescale.value * sin(cl.time*v_iroll_cycle.value) * v_iroll_level.value;
 		}
 
+
+		//Camera based positional movement
+		if (cl_positionaltrackingmode.integer == 1) {
+			vieworg[1] += (worldPosition[0] * r_worldscale.value); // Left/Right
+			vieworg[0] += (worldPosition[2] * r_worldscale.value); // Forward/Back
+			vieworg[2] += (worldPosition[1] * r_worldscale.value); // Up/Down
+		}
+		else
+        {
+            //Move gun to left or right depending on handedness
+            //vieworg[1] += ((rightHanded ? 0.15f : -0.15f) * r_worldscale.value);
+        }
+
 		Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2], viewangles[0], viewangles[1], viewangles[2], 1);
 
 		// calculate a viewmodel matrix for use in view-attached entities
@@ -898,8 +908,6 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 
 		Matrix4x4_CreateFromQuakeEntity(&viewmodelmatrix_withbob, gunorg[0], gunorg[1], gunorg[2], gunangles[0], gunangles[1], 0.0f /*no roll*/, cl_viewmodel_scale.value);
 
-        //Move gun to left or right depending on handedness
-        Matrix4x4_ConcatTranslate(&viewmodelmatrix_withbob, 0.0f, ((rightHanded ? -0.25f : 0.25f) * r_worldscale.value), -0.15f * r_worldscale.value);
 
 		VectorCopy(vieworg, cl.csqc_vieworiginfromengine);
 		VectorCopy(viewangles, cl.csqc_viewanglesfromengine);

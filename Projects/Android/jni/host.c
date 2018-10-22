@@ -671,7 +671,7 @@ double wait;
 int pass1, pass2, pass3, i;
 char vabuf[1024];
 qboolean playing;
-void Host_BeginFrame(bool progressTime)
+void Host_BeginFrame(bool stopTime)
 {
 		if (setjmp(host_abortframe))
 		{
@@ -679,7 +679,7 @@ void Host_BeginFrame(bool progressTime)
 			return;
 		}
 
-		if (progressTime) {
+		if (!stopTime) {
 			olddirtytime = host_dirtytime;
 			dirtytime = Sys_DirtyTime();
 			deltacleantime = dirtytime - olddirtytime;

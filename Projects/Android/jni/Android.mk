@@ -90,6 +90,7 @@ SRC_COMMON= \
 	r_explosion.c \
 	r_lerpanim.c \
 	r_lightning.c \
+	r_lasersight.c \
 	r_modules.c \
 	r_shadow.c \
 	r_sky.c \

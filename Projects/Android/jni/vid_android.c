@@ -30,7 +30,7 @@ static long oldtime=0;
 qboolean vid_supportrefreshrate = false;
 extern int vrMode;
 
-void Host_BeginFrame(bool progressTime);
+void Host_BeginFrame(bool stopTime);
 void Host_Frame(int eye, int x, int y);
 void Host_EndFrame();
 
@@ -448,11 +448,11 @@ r_glsl_permutation_t;
 extern r_glsl_permutation_t *r_glsl_permutation;
 extern void android_kostyl();
 
-void QC_BeginFrame(bool progressTime)
+void QC_BeginFrame(bool stopTime)
 {
 	scndswp=0;
 
-	Host_BeginFrame(progressTime);
+	Host_BeginFrame(stopTime);
 }
 
 void QC_DrawFrame(int eye, int x, int y)

@@ -1589,6 +1589,7 @@ void CL_ParseTEnt (void);
 void CL_NewBeam (int ent, vec3_t start, vec3_t end, dp_model_t *m, int lightning);
 void CL_RelinkBeams (void);
 void CL_Beam_CalculatePositions (const beam_t *b, vec3_t start, vec3_t end);
+void CL_LaserSight_CalculatePositions(vec3_t start, vec3_t end);
 void CL_ClientMovement_Replay(void);
 
 void CL_ClearTempEntities (void);

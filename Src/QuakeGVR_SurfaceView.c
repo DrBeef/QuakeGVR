@@ -110,6 +110,7 @@ extern cvar_t cl_positionaltrackingmode;
 extern cvar_t r_worldscale;
 extern cvar_t cl_forwardspeed;
 extern cvar_t cl_postrackmultiplier;
+extern cvar_t cl_controllerstrafe;
 
 qboolean rightHanded = true;
 
@@ -334,6 +335,7 @@ float  previousFrameYaw;
 float trackingYawAdjustment = 0.0f;
 vec3_t hmdorientation;
 extern float gunangles[3];
+float hmdRemoteYawDiff = 0.0f;
 
 int bigScreen = 1;
 ovrMatrix4f modelScreen;
@@ -357,13 +359,6 @@ void BigScreenMode(int mode)
 }
 
 extern int stereoMode;
-
-int strafeMode = 1;
-void ControllerStrafeMode(int mode)
-{
-	strafeMode = mode;
-}
-
 qboolean demoplayback;
 
 static void UnEscapeQuotes( char *arg )
@@ -1081,10 +1076,10 @@ static float uvs[8] = {
 };
 
 static float SCREEN_COORDS[12] = {
-		-6.0f, 5.0f, 3.0f,
-		-6.0f, -5.0f, 3.0f,
-		6.0f, -5.0f, 3.0f,
-		6.0f, 5.0f, 3.0f
+		-6.0f, 5.0f, 0.0f,
+		-6.0f, -5.0f, 0.0f,
+		6.0f, -5.0f, 0.0f,
+		6.0f, 5.0f, 0.0f
 };
 
 
@@ -1241,7 +1236,6 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
         jni_updatePosition();
     }
 
-
     //Get orientation
     // We extract Yaw, Pitch, Roll instead of directly using the orientation
     // to allow "additional" yaw manipulation with mouse/controller.
@@ -1254,6 +1248,8 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
     //Set gun angles
     const ovrQuatf quatRemote = remoteTracking.HeadPose.Pose.Orientation;
     QuatToYawPitchRoll(quatRemote, gunangles);
+
+	hmdRemoteYawDiff = hmdorientation[YAW] - gunangles[YAW];
 
     //Adjust gun pitch down slightly
     gunangles[PITCH] += 8.0f;
@@ -1271,7 +1267,7 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
         QC_MoveEvent(0, 0, 0);
 
     //Set everything up
-    QC_BeginFrame(!cameraPreview);
+    QC_BeginFrame(cameraPreview); // Stop time if in camera preview
 
 
 	ovrMatrix4f eyeViewMatrixTransposed[2];
@@ -1802,9 +1798,25 @@ static void ovrApp_HandleInput( ovrApp * app )
 							touchX = 0.0f;
 						}
 
-						if (strafeMode != 0) {
+						if (cl_controllerstrafe.integer == 1) {
                             remote_movementSideways += touchX;
                             remote_movementForward -= touchY;
+
+						}
+						else if (cl_controllerstrafe.integer == 2) {
+							//Adjust to be HMD oriented
+							vec3_t temp;
+							vec3_t v;
+							temp[0] = touchX;
+							temp[1] = -touchY;
+
+							matrix4x4_t matrix;
+							Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, hmdRemoteYawDiff, 0.0f, 1.0f);
+							Matrix4x4_Transform(&matrix, temp, v);
+
+							remote_movementSideways = v[0];
+							remote_movementForward = v[1];
+
 						}
 
 						bIsTouchingState = (trackedRemoteState.TrackpadStatus != 0);

@@ -1730,6 +1730,32 @@ void CL_Beam_CalculatePositions(const beam_t *b, vec3_t start, vec3_t end)
 	}
 }
 
+extern float gunangles[3];
+extern float gunorg[3];
+extern cvar_t r_worldscale;
+
+void CL_LaserSight_CalculatePositions(vec3_t start, vec3_t end)
+{
+    vec3_t temp;
+    trace_t trace;
+
+    Matrix4x4_OriginFromMatrix(&cl.entities[cl.viewentity].render.matrix, start);
+
+    if (r_worldscale.value < 200.0f) {
+        //Match gun position in Y
+        start[2] = gunorg[2] - 7.0f;
+    }
+
+    matrix4x4_t gunOrientationMatrix;
+    Matrix4x4_CreateFromQuakeEntity(&gunOrientationMatrix, gunorg[0], gunorg[1], start[2], gunangles[0], gunangles[1], 0.0f, 1.0f);
+
+    VectorSet(temp, 65536, 0, 0);
+    Matrix4x4_Transform(&gunOrientationMatrix, temp, end);
+    trace = CL_TraceLine(start, end, MOVE_NORMAL, NULL, SUPERCONTENTS_SOLID, true, false, NULL, true, true);
+
+    VectorCopy(trace.endpos, end);
+}
+
 void CL_RelinkBeams(void)
 {
 	int i;
@@ -1874,7 +1900,7 @@ void CSQC_RelinkAllEntities (int drawmask)
 	// link stuff
 	CL_RelinkWorld();
 	CL_RelinkStaticEntities();
-	CL_RelinkBeams();
+    CL_RelinkBeams();
 	CL_RelinkEffects();
 
 	// link stuff

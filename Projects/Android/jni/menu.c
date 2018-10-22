@@ -51,6 +51,7 @@ extern vec3_t hmdorientation;
 extern char *strGameFolder;
 
 extern cvar_t r_worldscale;
+extern cvar_t r_lasersight;
 
 extern void BigScreenMode(int mode);
 extern void SwitchStereoMode(int mode);
@@ -1733,7 +1734,10 @@ static void M_Menu_Options_AdjustSliders (int dir)
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++) ;
-	else if (options_cursor == optnum++) ;
+	else if (options_cursor == optnum++)
+	{
+		Cvar_SetValueQuick (&r_lasersight, r_lasersight.integer ? 0 : 1);
+	}
     else if (options_cursor == optnum++)
     {
         if (jni_isPositionTrackingSupported())
@@ -1864,7 +1868,15 @@ static void M_Options_Draw (void)
 	M_Options_PrintCommand( "     Reset to defaults", true);
 	M_Options_PrintCommand( "                      ", true);
 	M_Options_PrintCommand( "   Key/Button Bindings", true);
-	M_Options_PrintCommand( "   Add Bot To Map     ", true);
+	switch (r_lasersight.integer)
+	{
+		case 0:
+			M_Options_PrintCommand( "          Laser Sight: Disabled", true);
+			break;
+		case 1:
+			M_Options_PrintCommand( "          Laser Sight: Enabled", true);
+			break;
+	}
 
     switch (cl_positionaltrackingmode.integer)
     {
@@ -1895,7 +1907,7 @@ static void M_Options_Draw (void)
 	M_Options_PrintCommand( "      Lighting: Normal", true);
 	M_Options_PrintCommand( "      Lighting:   High", true);
 	M_Options_PrintCommand( "      Lighting:   Full", true);
-	M_Options_PrintCommand( "           Browse Mods", true);
+	M_Options_PrintCommand( "     ** Browse Mods **", true);
 }
 
 
@@ -1930,7 +1942,7 @@ static void M_Options_Key (int k, int ascii)
 			M_Menu_Keys_f ();
 			break;
         case 6:
-            Cbuf_AddText("Bot 1");
+			Cvar_SetValueQuick (&r_lasersight, r_lasersight.integer ? 0 : 1);
             break;
 		case 10:
 			M_Menu_Options_ColorControl_f ();
@@ -1943,7 +1955,7 @@ static void M_Options_Key (int k, int ascii)
 			}
 			else
 			{
-				Cvar_SetValueQuick (&r_worldscale, 40.0f);
+				Cvar_SetValueQuick (&r_worldscale, 30.0f);
 				Cvar_SetValueQuick (&chase_active, 0);
 			}
 			break;
@@ -1969,10 +1981,10 @@ static void M_Options_Key (int k, int ascii)
 			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 0;r_shadow_realtime_world 0;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 0");
 			break;
 		case 22: // Lighting: High
-			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 1;r_shadow_realtime_world 0;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 1");
+			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 1;r_shadow_realtime_world 0;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 0");
 			break;
 		case 23: // Lighting: Full
-			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 1;r_shadow_realtime_world 1;r_shadow_realtime_world_lightmaps 0;r_shadow_realtime_world_shadows 1;r_bloom 1");
+			Cbuf_AddText("r_coronas 1;gl_flashblend 0;r_shadow_gloss 1;r_shadow_realtime_dlight 1;r_shadow_realtime_dlight_shadows 1;r_shadow_realtime_world 1;r_shadow_realtime_world_lightmaps 1;r_shadow_realtime_world_shadows 1;r_bloom 0");
 			break;
 		case 24:
 			M_Menu_ModList_f ();
@@ -1987,13 +1999,13 @@ static void M_Options_Key (int k, int ascii)
 		S_LocalSound ("sound/misc/menu1.wav");
 		options_cursor--;
 		if (options_cursor < 0)
-			options_cursor = OPTIONS_ITEMS-1;
+			options_cursor = OPTIONS_ITEMS;
 		break;
 
 	case K_DOWNARROW:
 		S_LocalSound ("sound/misc/menu1.wav");
 		options_cursor++;
-		if (options_cursor >= OPTIONS_ITEMS)
+		if (options_cursor > OPTIONS_ITEMS)
 			options_cursor = 0;
 		break;
 
@@ -3078,9 +3090,8 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 		{
 			int newControllerStrafe = cl_controllerstrafe.integer;
 			if (--newControllerStrafe < 0)
-				newControllerStrafe = 1;
+				newControllerStrafe = 2;
 			Cvar_SetValueQuick (&cl_controllerstrafe, newControllerStrafe);
-			ControllerStrafeMode(cl_controllerstrafe.integer);
 		}
 		else if (controllermode_cursor == 3)
 		{
@@ -3106,10 +3117,9 @@ static void M_Menu_YawPitchControl_Key (int key, int ascii)
 		else if (controllermode_cursor == 2)
 		{
 			int newControllerStrafe = cl_controllerstrafe.integer;
-			if (++newControllerStrafe > 1)
+			if (++newControllerStrafe > 2)
 				newControllerStrafe = 0;
 			Cvar_SetValueQuick (&cl_controllerstrafe, newControllerStrafe);
-			ControllerStrafeMode(cl_controllerstrafe.integer);
 		}
 		else if (controllermode_cursor == 3)
 		{
@@ -3152,7 +3162,9 @@ static void M_Menu_YawPitchControl_Draw (void)
 		M_Options_PrintCommand(" Controller Mode:           Do Not Use 3DOF Controller", true);
 
 	if (cl_controllerstrafe.integer == 1)
-		M_Options_PrintCommand(" 3DOF Controller Movement: Enabled", (cl_controllermode.integer == 1));
+		M_Options_PrintCommand(" 3DOF Controller Movement: Enabled Mode 1", (cl_controllermode.integer == 1));
+    else if (cl_controllerstrafe.integer == 2)
+        M_Options_PrintCommand(" 3DOF Controller Movement: Enabled Mode 2", (cl_controllermode.integer == 1));
 	else if (cl_controllerstrafe.integer == 0)
 		M_Options_PrintCommand(" 3DOF Controller Movement: Disabled", (cl_controllermode.integer == 1));
 

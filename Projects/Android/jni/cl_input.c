@@ -438,8 +438,8 @@ cvar_t cl_movespeedkey = {CVAR_SAVE, "cl_movespeedkey","2.0","how much +speed mu
 cvar_t cl_movecliptokeyboard = {0, "cl_movecliptokeyboard", "0", "if set to 1, any move is clipped to the nine keyboard states; if set to 2, only the direction is clipped, not the amount"};
 
 cvar_t cl_yawmode = {CVAR_SAVE, "cl_yawmode","0","0 = swivel-chair, 1 = comfort, 2 = stick"};
-cvar_t cl_controllermode = {CVAR_SAVE, "cl_controllermode","1","0 = Don't Use Daydream Controller, 1 = Use Daydream Controller"};
-cvar_t cl_controllerstrafe = {CVAR_SAVE, "cl_controllerstrafe","1","0 = Disable Daydream Controller Strafing, 1 = Use Daydream Controller Strafing"};
+cvar_t cl_controllermode = {CVAR_SAVE, "cl_controllermode","1","0 = Don't Use GearVR Controller, 1 = Use GearVR Controller"};
+cvar_t cl_controllerstrafe = {CVAR_SAVE, "cl_controllerstrafe","1","0 = Disable GearVR Controller Strafing, 1 = Use GearVR Controller Mode 1, 2 = Use GearVR Controller Mode 2"};
 cvar_t cl_comfort = {CVAR_SAVE, "cl_comfort","45.0","angle by which comfort mode adjusts yaw"};
 cvar_t cl_yawspeed = {CVAR_SAVE, "cl_yawspeed","150","keyboard yaw turning speed"};
 cvar_t cl_pitchspeed = {CVAR_SAVE, "cl_pitchspeed","150","keyboard pitch turning speed"};
