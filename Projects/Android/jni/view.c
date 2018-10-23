@@ -890,14 +890,24 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
 
 		//Camera based positional movement
 		if (cl_positionaltrackingmode.integer == 1) {
+            vieworg[0] += (worldPosition[2] * r_worldscale.value); // Forward/Back
 			vieworg[1] += (worldPosition[0] * r_worldscale.value); // Left/Right
-			vieworg[0] += (worldPosition[2] * r_worldscale.value); // Forward/Back
 			vieworg[2] += (worldPosition[1] * r_worldscale.value); // Up/Down
 		}
 		else
         {
             //Move gun to left or right depending on handedness
-            //vieworg[1] += ((rightHanded ? 0.15f : -0.15f) * r_worldscale.value);
+            vec3_t temp;
+            vec3_t v;
+            temp[0] = 0.0f;
+            temp[1] = ((rightHanded ? 0.15f : -0.15f) * r_worldscale.value);
+
+            matrix4x4_t matrix;
+            Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, viewangles[1], 0.0f, 1.0f);
+            Matrix4x4_Transform(&matrix, temp, v);
+
+            vieworg[0] += v[0];
+            vieworg[1] += v[1];
         }
 
 		Matrix4x4_CreateFromQuakeEntity(&r_refdef.view.matrix, vieworg[0], vieworg[1], vieworg[2], viewangles[0], viewangles[1], viewangles[2], 1);

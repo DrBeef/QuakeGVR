@@ -7447,11 +7447,11 @@ void R_RenderScene(int fbo, rtexture_t *depthtexture, rtexture_t *colortexture)
         qboolean cldead = (cl.stats[STAT_HEALTH] <= 0 && cl.stats[STAT_HEALTH] != -666 && cl.stats[STAT_HEALTH] != -2342);
         int activeWeapon = cl.stats[STAT_ACTIVEWEAPON];
         if (!cl.intermission && !cls.demoplayback && r_lasersight.integer && !cldead && activeWeapon != IT_AXE && activeWeapon != IT_GRENADE_LAUNCHER)
-		{
-			R_DrawLaserSights();
-			if (r_timereport_active)
-				R_TimeReport("lasersights");
-		}
+        {
+            R_DrawLaserSights();
+            if (r_timereport_active)
+                R_TimeReport("lasersights");
+        }
 	}
 
 	if (cl.csqc_loaded)

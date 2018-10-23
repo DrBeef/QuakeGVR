@@ -1756,6 +1756,38 @@ void CL_LaserSight_CalculatePositions(vec3_t start, vec3_t end)
     VectorCopy(trace.endpos, end);
 }
 
+extern cvar_t r_lasersight;
+void CL_LaserSight_SetupTorch()
+{
+    qboolean cldead = (cl.stats[STAT_HEALTH] <= 0 && cl.stats[STAT_HEALTH] != -666 && cl.stats[STAT_HEALTH] != -2342);
+    int activeWeapon = cl.stats[STAT_ACTIVEWEAPON];
+    if (!cl.intermission && !cls.demoplayback && r_lasersight.integer == 2 && !cldead && activeWeapon != IT_AXE && activeWeapon != IT_GRENADE_LAUNCHER)
+    {
+        vec3_t org, start, end, dir;
+        vec_t dist;
+        CL_LaserSight_CalculatePositions(start, end);
+
+        // calculate the nearest point on the line (beam) for depth sorting
+        VectorSubtract(end, start, dir);
+        dist = (DotProduct(r_refdef.view.origin, dir) - DotProduct(start, dir)) / (DotProduct(end, dir) - DotProduct(start, dir));
+        dist = bound(0, dist, 1);
+        VectorLerp(start, dist, end, org);
+
+        //Torch
+        if (r_refdef.scene.numlights < MAX_DLIGHTS) {
+            vec3_t dlightcolor;
+            matrix4x4_t tempmatrix;
+            VectorSet(dlightcolor, 0.8, 0.7, 1);
+            Matrix4x4_CreateFromQuakeEntity(&tempmatrix, end[0], end[1], end[2], 0, 0, 0, 8);
+            R_RTLight_Update(&r_refdef.scene.templights[r_refdef.scene.numlights], false,
+                             &tempmatrix, dlightcolor, -1, NULL, true, 1, 0.5, 1, 0, 0,
+                             LIGHTFLAG_NORMALMODE | LIGHTFLAG_REALTIMEMODE);
+            r_refdef.scene.lights[r_refdef.scene.numlights] = &r_refdef.scene.templights[r_refdef.scene.numlights];
+            r_refdef.scene.numlights++;
+        }
+    }
+}
+
 void CL_RelinkBeams(void)
 {
 	int i;
@@ -1902,6 +1934,7 @@ void CSQC_RelinkAllEntities (int drawmask)
 	CL_RelinkStaticEntities();
     CL_RelinkBeams();
 	CL_RelinkEffects();
+    CL_LaserSight_SetupTorch();
 
 	// link stuff
 	if (drawmask & ENTMASK_ENGINE)

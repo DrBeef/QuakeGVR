@@ -1736,7 +1736,7 @@ static void M_Menu_Options_AdjustSliders (int dir)
 	else if (options_cursor == optnum++) ;
 	else if (options_cursor == optnum++)
 	{
-		Cvar_SetValueQuick (&r_lasersight, r_lasersight.integer ? 0 : 1);
+		Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
 	}
     else if (options_cursor == optnum++)
     {
@@ -1874,8 +1874,11 @@ static void M_Options_Draw (void)
 			M_Options_PrintCommand( "          Laser Sight: Disabled", true);
 			break;
 		case 1:
-			M_Options_PrintCommand( "          Laser Sight: Enabled", true);
+			M_Options_PrintCommand( "          Laser Sight: Beam", true);
 			break;
+        case 2:
+            M_Options_PrintCommand( "          Laser Sight: Torchlight", true);
+            break;
 	}
 
     switch (cl_positionaltrackingmode.integer)
@@ -1942,7 +1945,7 @@ static void M_Options_Key (int k, int ascii)
 			M_Menu_Keys_f ();
 			break;
         case 6:
-			Cvar_SetValueQuick (&r_lasersight, r_lasersight.integer ? 0 : 1);
+			Cvar_SetValueQuick (&r_lasersight, (r_lasersight.integer+1) % 3);
             break;
 		case 10:
 			M_Menu_Options_ColorControl_f ();

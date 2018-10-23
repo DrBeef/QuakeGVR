@@ -16,6 +16,7 @@ void R_LaserSights_Init(void)
 }
 
 void R_DrawBLineMesh(vec3_t mins, vec3_t maxs, float thickness, float cr, float cg, float cb, float ca);
+extern cvar_t r_lasersight;
 
 void R_DrawLaserSights(void)
 {
@@ -29,8 +30,12 @@ void R_DrawLaserSights(void)
 	dist = bound(0, dist, 1);
 	VectorLerp(start, dist, end, org);
 
-    GL_DepthTest(!r_showdisabledepthtest.integer);
-    GL_CullFace(r_refdef.view.cullface_front);
-    R_DrawBLineMesh(org, end, 0.3f, r_lasersight_color_red.value, r_lasersight_color_green.value, r_lasersight_color_blue.value, 1);
+	if (r_lasersight.integer == 1) {
+	    //Beam
+        GL_DepthTest(!r_showdisabledepthtest.integer);
+        GL_CullFace(r_refdef.view.cullface_front);
+        R_DrawBLineMesh(org, end, 0.3f, r_lasersight_color_red.value,
+                        r_lasersight_color_green.value, r_lasersight_color_blue.value, 1);
+    }
 }
 
