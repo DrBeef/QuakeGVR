@@ -1777,7 +1777,7 @@ void CL_LaserSight_SetupTorch()
         if (r_refdef.scene.numlights < MAX_DLIGHTS) {
             vec3_t dlightcolor;
             matrix4x4_t tempmatrix;
-            VectorSet(dlightcolor, 0.8, 0.7, 1);
+            VectorSet(dlightcolor, 3.2, 3.7, 4);
             Matrix4x4_CreateFromQuakeEntity(&tempmatrix, end[0], end[1], end[2], 0, 0, 0, 8);
             R_RTLight_Update(&r_refdef.scene.templights[r_refdef.scene.numlights], false,
                              &tempmatrix, dlightcolor, -1, NULL, true, 1, 0.5, 1, 0, 0,
