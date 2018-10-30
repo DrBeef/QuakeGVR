@@ -24,6 +24,8 @@ Copyright	:	Copyright 2015 Oculus VR, LLC. All Rights reserved.
 #include <android/native_window_jni.h>	// for native window JNI
 #include <android/input.h>
 
+#include "argtable3.h"
+
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
@@ -98,9 +100,11 @@ PFNEGLGETSYNCATTRIBKHRPROC		eglGetSyncAttribKHR;
 #define ALOGV(...)
 #endif
 
-static const int CPU_LEVEL			= 2;
-static const int GPU_LEVEL			= 3;
-static const int NUM_MULTI_SAMPLES	= 1;
+int CPU_LEVEL			= 2;
+int GPU_LEVEL			= 3;
+int NUM_MULTI_SAMPLES	= 1;
+
+float SS_MULTIPLIER    = 1.0f;
 
 extern float worldPosition[3];
 float positionDeltaThisFrame[3];
@@ -112,6 +116,8 @@ extern cvar_t cl_forwardspeed;
 extern cvar_t cl_postrackmultiplier;
 extern cvar_t cl_controllerstrafe;
 
+extern int			key_consoleactive;
+
 qboolean rightHanded = true;
 
 static float radians(float deg) {
@@ -121,6 +127,17 @@ static float radians(float deg) {
 static float degrees(float rad) {
 	return (rad * 180.0) / M_PI;
 }
+
+
+/* global arg_xxx structs */
+struct arg_dbl *ss;
+struct arg_int *cpu;
+struct arg_int *gpu;
+struct arg_int *msaa;
+struct arg_end *end;
+
+char **argv;
+int argc=0;
 
 
 /*
@@ -344,17 +361,14 @@ bool cameraPreview = false;
 
 void BigScreenMode(int mode)
 {
-	if (bigScreen == 1)
+	if (mode == 1 && key_consoleactive == 0) // bit of a hack, but only way rotation set when menu first invoked
 	{
 		rotation = ovrMatrix4f_CreateRotation( 0.0f, radians(hmdorientation[YAW]), 0.0f );
 	}
 
 	if (bigScreen != 2)
 	{
-		if (key_consoleactive > 0)
-			bigScreen = 1;
-		else
-			bigScreen = mode;
+		bigScreen = mode;
 	}
 }
 
@@ -462,8 +476,8 @@ static void EglInitExtensions()
 		glExtensions.multi_view = strstr( allExtensions, "GL_OVR_multiview2" ) &&
 								  strstr( allExtensions, "GL_OVR_multiview_multisampled_render_to_texture" );
 
-		glExtensions.EXT_texture_border_clamp = strstr( allExtensions, "GL_EXT_texture_border_clamp" ) ||
-												strstr( allExtensions, "GL_OES_texture_border_clamp" );
+		glExtensions.EXT_texture_border_clamp = false;//strstr( allExtensions, "GL_EXT_texture_border_clamp" ) ||
+												//strstr( allExtensions, "GL_OES_texture_border_clamp" );
 	}
 }
 
@@ -763,11 +777,11 @@ static bool ovrFramebuffer_Create( ovrFramebuffer * frameBuffer, const GLenum co
 	PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC glFramebufferTextureMultisampleMultiviewOVR =
 		(PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC) eglGetProcAddress( "glFramebufferTextureMultisampleMultiviewOVR" );
 
-	frameBuffer->Width = width;
-	frameBuffer->Height = height;
+	frameBuffer->Width = width * SS_MULTIPLIER;
+	frameBuffer->Height = height * SS_MULTIPLIER;
 	frameBuffer->Multisamples = multisamples;
 
-	frameBuffer->ColorTextureSwapChain = vrapi_CreateTextureSwapChain3( VRAPI_TEXTURE_TYPE_2D, colorFormat, width, height, 1, 3 );
+	frameBuffer->ColorTextureSwapChain = vrapi_CreateTextureSwapChain3( VRAPI_TEXTURE_TYPE_2D, colorFormat, frameBuffer->Width, frameBuffer->Height, 1, 3 );
 	frameBuffer->TextureSwapChainLength = vrapi_GetTextureSwapChainLength( frameBuffer->ColorTextureSwapChain );
 	frameBuffer->DepthBuffers = (GLuint *)malloc( frameBuffer->TextureSwapChainLength * sizeof( GLuint ) );
 	frameBuffer->FrameBuffers = (GLuint *)malloc( frameBuffer->TextureSwapChainLength * sizeof( GLuint ) );
@@ -802,7 +816,7 @@ static bool ovrFramebuffer_Create( ovrFramebuffer * frameBuffer, const GLenum co
 				// Create multisampled depth buffer.
 				GL( glGenRenderbuffers( 1, &frameBuffer->DepthBuffers[i] ) );
 				GL( glBindRenderbuffer( GL_RENDERBUFFER, frameBuffer->DepthBuffers[i] ) );
-				GL( glRenderbufferStorageMultisampleEXT( GL_RENDERBUFFER, multisamples, GL_DEPTH_COMPONENT24, width, height ) );
+				GL( glRenderbufferStorageMultisampleEXT( GL_RENDERBUFFER, multisamples, GL_DEPTH_COMPONENT24, frameBuffer->Width, frameBuffer->Height ) );
 				GL( glBindRenderbuffer( GL_RENDERBUFFER, 0 ) );
 
 				// Create the frame buffer.
@@ -824,7 +838,7 @@ static bool ovrFramebuffer_Create( ovrFramebuffer * frameBuffer, const GLenum co
 				// Create depth buffer.
 				GL( glGenRenderbuffers( 1, &frameBuffer->DepthBuffers[i] ) );
 				GL( glBindRenderbuffer( GL_RENDERBUFFER, frameBuffer->DepthBuffers[i] ) );
-				GL( glRenderbufferStorage( GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height ) );
+				GL( glRenderbufferStorage( GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, frameBuffer->Width, frameBuffer->Height ) );
 				GL( glBindRenderbuffer( GL_RENDERBUFFER, 0 ) );
 
 				// Create the frame buffer.
@@ -883,6 +897,33 @@ static void ovrFramebuffer_Advance( ovrFramebuffer * frameBuffer )
 {
 	// Advance to the next texture from the set.
 	frameBuffer->TextureSwapChainIndex = ( frameBuffer->TextureSwapChainIndex + 1 ) % frameBuffer->TextureSwapChainLength;
+}
+
+
+static void ovrFramebuffer_ClearEdgeTexels( ovrFramebuffer * frameBuffer )
+{
+    GL( glEnable( GL_SCISSOR_TEST ) );
+    GL( glViewport( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
+
+    // Explicitly clear the border texels to black because OpenGL-ES does not support GL_CLAMP_TO_BORDER.
+    // Clear to fully opaque black.
+    GL( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
+
+    // bottom
+    GL( glScissor( 0, 0, frameBuffer->Width, 1 ) );
+    GL( glClear( GL_COLOR_BUFFER_BIT ) );
+    // top
+    GL( glScissor( 0, frameBuffer->Height - 1, frameBuffer->Width, 1 ) );
+    GL( glClear( GL_COLOR_BUFFER_BIT ) );
+    // left
+    GL( glScissor( 0, 0, 1, frameBuffer->Height ) );
+    GL( glClear( GL_COLOR_BUFFER_BIT ) );
+    // right
+    GL( glScissor( frameBuffer->Width - 1, 0, 1, frameBuffer->Height ) );
+    GL( glClear( GL_COLOR_BUFFER_BIT ) );
+
+    GL( glScissor( 0, 0, 0, 0 ) );
+    GL( glDisable( GL_SCISSOR_TEST ) );
 }
 
 /*
@@ -1310,8 +1351,11 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
 			GL( glDepthMask( GL_TRUE ) );
 			GL( glEnable( GL_DEPTH_TEST ) );
 			GL( glDepthFunc( GL_LEQUAL ) );
+
+			//We are using the size of the render target
 			GL( glViewport( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
 			GL( glScissor( 0, 0, frameBuffer->Width, frameBuffer->Height ) );
+
 			GL( glClearColor( 0.01f, 0.0f, 0.0f, 1.0f ) );
 			GL( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 			GL( glDisable(GL_SCISSOR_TEST));
@@ -1320,26 +1364,11 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
             QC_DrawFrame(eye, 0, 0);
 		}
 
-		// Explicitly clear the border texels to black when GL_CLAMP_TO_BORDER is not available.
-		if ( glExtensions.EXT_texture_border_clamp == false )
-		{
-			// Clear to fully opaque black.
-			GL( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
-			// bottom
-			GL( glScissor( 0, 0, frameBuffer->Width, 1 ) );
-			GL( glClear( GL_COLOR_BUFFER_BIT ) );
-			// top
-			GL( glScissor( 0, frameBuffer->Height - 1, frameBuffer->Width, 1 ) );
-			GL( glClear( GL_COLOR_BUFFER_BIT ) );
-			// left
-			GL( glScissor( 0, 0, 1, frameBuffer->Height ) );
-			GL( glClear( GL_COLOR_BUFFER_BIT ) );
-			// right
-			GL( glScissor( frameBuffer->Width - 1, 0, 1, frameBuffer->Height ) );
-			GL( glClear( GL_COLOR_BUFFER_BIT ) );
-		}
 
-		if (bigScreen != 0 || demoplayback || cameraPreview)
+        //Clear edge to prevent smearing
+        ovrFramebuffer_ClearEdgeTexels( frameBuffer );
+
+		if (bigScreen != 0 || demoplayback || cameraPreview || key_consoleactive)
 		{
 			frameBuffer = &renderer->FrameBuffer[eye];
 			ovrFramebuffer_SetCurrent( frameBuffer );
@@ -1431,24 +1460,9 @@ static ovrLayerProjection2 ovrRenderer_RenderFrame( ovrRenderer * renderer, cons
 			GL( glActiveTexture(GL_TEXTURE0) );
 			GL( glBindTexture(GL_TEXTURE_2D, originalTex0) );
 
-			// Explicitly clear the border texels to black when GL_CLAMP_TO_BORDER is not available.
-			if ( glExtensions.EXT_texture_border_clamp == false )
-			{
-				// Clear to fully opaque black.
-				GL( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
-				// bottom
-				GL( glScissor( 0, 0, frameBuffer->Width, 1 ) );
-				GL( glClear( GL_COLOR_BUFFER_BIT ) );
-				// top
-				GL( glScissor( 0, frameBuffer->Height - 1, frameBuffer->Width, 1 ) );
-				GL( glClear( GL_COLOR_BUFFER_BIT ) );
-				// left
-				GL( glScissor( 0, 0, 1, frameBuffer->Height ) );
-				GL( glClear( GL_COLOR_BUFFER_BIT ) );
-				// right
-				GL( glScissor( frameBuffer->Width - 1, 0, 1, frameBuffer->Height ) );
-				GL( glClear( GL_COLOR_BUFFER_BIT ) );
-			}
+
+            //Clear edge to prevent smearing
+            ovrFramebuffer_ClearEdgeTexels( frameBuffer );
 		}
 		
 		ovrFramebuffer_Resolve( frameBuffer );
@@ -2204,8 +2218,6 @@ void * AppThreadFunction( void * parm )
 			{
 				case MESSAGE_ON_CREATE:
 				{
-					QC_SetResolution(vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ),
-								vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_HEIGHT ));
 					break;
 				}
 				case MESSAGE_ON_START:
@@ -2218,16 +2230,18 @@ void * AppThreadFunction( void * parm )
 
 						if (arg)
 						{
-							ALOGV("Command line %s", arg);
-							char **argv;
-							int argc=0;
-							argv = malloc(sizeof(char*) * 255);
-							argc = ParseCommandLine(strdup(arg), argv);
+							QC_SetResolution(vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ) * SS_MULTIPLIER,
+											 vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_HEIGHT ) * SS_MULTIPLIER);
+
 							main(argc, argv);
 						}
 						else
 						{
-							int argc =1; char *argv[] = { "quake" };
+							int argc = 1; char *argv[] = { "quake" };
+
+							QC_SetResolution(vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH ) * SS_MULTIPLIER,
+											 vrapi_GetSystemPropertyInt( &java, VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_HEIGHT ) * SS_MULTIPLIER);
+
 							main(argc, argv);
 						}
 
@@ -2407,9 +2421,61 @@ int JNI_OnLoad(JavaVM* vm, void* reserved)
 	return JNI_VERSION_1_4;
 }
 
-JNIEXPORT jlong JNICALL Java_com_drbeef_quakegvr_GLES3JNILib_onCreate( JNIEnv * env, jclass activityClass, jobject activity)
+JNIEXPORT jlong JNICALL Java_com_drbeef_quakegvr_GLES3JNILib_onCreate( JNIEnv * env, jclass activityClass, jobject activity,
+																	   jstring commandLineParams)
 {
 	ALOGV( "    GLES3JNILib::onCreate()" );
+
+	/* the global arg_xxx structs are initialised within the argtable */
+	void *argtable[] = {
+			ss   = arg_dbl0("s", "supersampling", "<double>", "super sampling value (e.g. 1.0)"),
+            cpu   = arg_int0("c", "cpu", "<int>", "CPU perf index 1-3 (default: 2)"),
+            gpu   = arg_int0("g", "gpu", "<int>", "GPU perf index 1-3 (default: 3)"),
+            msaa   = arg_dbl0("m", "msaa", "<int>", "msaa value 1-4 (default 1)"), // Don't think this actually works
+			end     = arg_end(20)
+	};
+
+	jboolean iscopy;
+	const char *arg = (*env)->GetStringUTFChars(env, commandLineParams, &iscopy);
+
+	char *cmdLine = NULL;
+	if (arg && strlen(arg))
+	{
+		cmdLine = strdup(arg);
+	}
+
+	(*env)->ReleaseStringUTFChars(env, commandLineParams, arg);
+
+	ALOGV("Command line %s", arg);
+	argv = malloc(sizeof(char*) * 255);
+	argc = ParseCommandLine(strdup(arg), argv);
+
+	/* verify the argtable[] entries were allocated sucessfully */
+	if (arg_nullcheck(argtable) == 0) {
+		/* Parse the command line as defined by argtable[] */
+		arg_parse(argc, argv, argtable);
+
+        if (ss->count > 0 && ss->dval[0] > 0.0)
+        {
+            SS_MULTIPLIER = ss->dval[0];
+        }
+
+        if (cpu->count > 0 && cpu->ival[0] > 0 && cpu->ival[0] < 4)
+        {
+            CPU_LEVEL = cpu->ival[0];
+        }
+
+        if (gpu->count > 0 && gpu->ival[0] > 0 && gpu->ival[0] < 4)
+        {
+            GPU_LEVEL = gpu->ival[0];
+        }
+
+        if (msaa->count > 0 && msaa->ival[0] > 0 && msaa->ival[0] < 5)
+        {
+            NUM_MULTI_SAMPLES = msaa->ival[0];
+        }
+	}
+
 
 	ovrAppThread * appThread = (ovrAppThread *) malloc( sizeof( ovrAppThread ) );
 	ovrAppThread_Create( appThread, env, activity );
@@ -2450,27 +2516,13 @@ JNIEXPORT void JNICALL Java_com_drbeef_quakegvr_GLES3JNILib_setCallbackObjects(J
     android_getCameraTexture = (*env)->GetMethodID(env,qgvrCallbackClass,"getCameraTexture","()I");
 }
 
-JNIEXPORT void JNICALL Java_com_drbeef_quakegvr_GLES3JNILib_onStart( JNIEnv * env, jobject obj, jlong handle,
-		jstring commandLineParams )
+JNIEXPORT void JNICALL Java_com_drbeef_quakegvr_GLES3JNILib_onStart( JNIEnv * env, jobject obj, jlong handle)
 {
 	ALOGV( "    GLES3JNILib::onStart()" );
-
-	jboolean iscopy;
-    const char *arg = (*env)->GetStringUTFChars(env, commandLineParams, &iscopy);
-
-    char *cmdLine = NULL;
-    if (arg && strlen(arg))
-    {
-    	cmdLine = strdup(arg);
-    }
-
-	(*env)->ReleaseStringUTFChars(env, commandLineParams, arg);
-
 
 	ovrAppThread * appThread = (ovrAppThread *)((size_t)handle);
 	ovrMessage message;
 	ovrMessage_Init( &message, MESSAGE_ON_START, MQ_WAIT_PROCESSED );
-	ovrMessage_SetPointerParm( &message, 0, cmdLine );
 	ovrMessageQueue_PostMessage( &appThread->MessageQueue, &message );
 }
 

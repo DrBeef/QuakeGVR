@@ -42,6 +42,8 @@ import android.view.MotionEvent;
 
 	private static final String TAG = "QuakeGVR";
 
+	String commandLineParams;
+
 	private SurfaceView mView;
 	private SurfaceHolder mSurfaceHolder;
 	private long mNativeHandle;
@@ -73,9 +75,10 @@ import android.view.MotionEvent;
 		getWindow().setAttributes( params );
 		
 		//This will copy the shareware version of quake if user doesn't have anything installed
-		copy_asset("pak0.pak");
-		copy_asset("config.cfg");
-		
+		copy_asset("/sdcard/QGVR/id1", "pak0.pak");
+		copy_asset("/sdcard/QGVR/id1", "config.cfg");
+		copy_asset("/sdcard/QGVR", "commandline.txt");
+
 		if (mAudio==null)
 		{
 			mAudio = new QGVRAudioCallback();
@@ -83,22 +86,45 @@ import android.view.MotionEvent;
 		
 		GLES3JNILib.setCallbackObjects(mAudio, this);
 
-		mNativeHandle = GLES3JNILib.onCreate( this );
+		//Read these from a file and pass through
+		commandLineParams = new String("quake");
+
+		//See if user is trying to use command line params
+		if(new File("/sdcard/QGVR/commandline.txt").exists()) // should exist!
+		{
+			BufferedReader br;
+			try {
+				br = new BufferedReader(new FileReader("/sdcard/QGVR/commandline.txt"));
+				String s;
+				StringBuilder sb=new StringBuilder(0);
+				while ((s=br.readLine())!=null)
+					sb.append(s + " ");
+				br.close();
+
+				commandLineParams = new String(sb.toString());
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		mNativeHandle = GLES3JNILib.onCreate( this, commandLineParams );
 	}
 	
-	public void copy_asset(String name) {
-		File f = new File("/sdcard/QGVR/id1/" + name); 
-		if (!f.exists() ||
-			//If file was somehow corrupted, copy the back-up
-			f.length() < 500) {
+	public void copy_asset(String path, String name) {
+		File f = new File(path + "/" + name);
+		if (!f.exists()) {
 			
 			//Ensure we have an appropriate folder
-			new File("/sdcard/QGVR/id1").mkdirs();
-			copy_asset(name, "/sdcard/QGVR/id1/" + name);
+			new File(path).mkdirs();
+			_copy_asset(name, path + "/" + name);
 		}
 	}
 
-	public void copy_asset(String name_in, String name_out) {
+	public void _copy_asset(String name_in, String name_out) {
 		AssetManager assets = this.getAssets();
 
 		try {
@@ -134,32 +160,7 @@ import android.view.MotionEvent;
 		Log.v( TAG, "GLES3JNIActivity::onStart()" );
 		super.onStart();
 
-		//Read these from a file and pass through
-		String commandLineParams = new String("quake");
-
-		//See if user is trying to use command line params
-		if(new File("/sdcard/QGVR/commandline.txt").exists())
-		{
-			BufferedReader br;
-			try {
-				br = new BufferedReader(new FileReader("/sdcard/QGVR/commandline.txt"));
-				String s;
-				StringBuilder sb=new StringBuilder(0);
-				while ((s=br.readLine())!=null)
-					sb.append(s + " ");
-				br.close();
-
-				commandLineParams = new String(sb.toString());
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-
-		GLES3JNILib.onStart( mNativeHandle, commandLineParams );
+		GLES3JNILib.onStart( mNativeHandle );
 	}
 
 	@Override protected void onResume()

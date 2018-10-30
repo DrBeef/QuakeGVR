@@ -24,6 +24,7 @@ SRC_SND_COMMON=snd_main.c snd_mem.c snd_mix.c snd_ogg.c snd_wav.c snd_modplug.c
 
 # Common objects
 SRC_COMMON= \
+	argtable3.c \
 	bih.c \
 	cap_avi.c \
 	cap_ogg.c \

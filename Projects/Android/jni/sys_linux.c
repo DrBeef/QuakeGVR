@@ -152,12 +152,12 @@ int main (int argc, char **argv)
 	signal(SIGFPE, SIG_IGN);
 
 	com_argc = argc;
-	int argvsize=0;
+	int argvsize=argc * sizeof(char*);
 	int i;
-	for (i=0; i<argc; i++)
-    	{
+	/*for (i=0; i<argc; i++)
+			{
         	argvsize+=strlen(argv[i])+1;
-    	}
+    	}*/
 	static char** staticargv;
 	staticargv=(char**)malloc(argvsize);
 	memcpy(staticargv,argv,argvsize);
