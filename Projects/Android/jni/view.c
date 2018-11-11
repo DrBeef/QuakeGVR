@@ -51,6 +51,8 @@ cvar_t cl_bobmodel_side = {CVAR_SAVE, "cl_bobmodel_side", "0.15", "gun bobbing s
 cvar_t cl_bobmodel_up = {CVAR_SAVE, "cl_bobmodel_up", "0.06", "gun bobbing upward movement amount"};
 cvar_t cl_bobmodel_speed = {CVAR_SAVE, "cl_bobmodel_speed", "7", "gun bobbing speed"};
 
+cvar_t cl_weaponoffset = {CVAR_SAVE, "cl_weaponoffset", "0.15", "gun handedness offset"};
+
 cvar_t cl_leanmodel = {CVAR_SAVE, "cl_leanmodel", "0", "enables gun leaning"};
 cvar_t cl_leanmodel_side_speed = {CVAR_SAVE, "cl_leanmodel_side_speed", "0.7", "gun leaning sideways speed"};
 cvar_t cl_leanmodel_side_limit = {CVAR_SAVE, "cl_leanmodel_side_limit", "35", "gun leaning sideways limit"};
@@ -900,7 +902,7 @@ void V_CalcRefdefUsing (const matrix4x4_t *entrendermatrix, const vec3_t clviewa
             vec3_t temp;
             vec3_t v;
             temp[0] = 0.0f;
-            temp[1] = ((rightHanded ? 0.15f : -0.15f) * r_worldscale.value);
+            temp[1] = ((rightHanded ? 1.0f : -1.0f) * cl_weaponoffset.value * r_worldscale.value);
 
             matrix4x4_t matrix;
             Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, viewangles[1], 0.0f, 1.0f);
@@ -1155,6 +1157,8 @@ void V_Init (void)
 	Cvar_RegisterVariable (&cl_bobmodel_side);
 	Cvar_RegisterVariable (&cl_bobmodel_up);
 	Cvar_RegisterVariable (&cl_bobmodel_speed);
+
+	Cvar_RegisterVariable (&cl_weaponoffset);
 
 	Cvar_RegisterVariable (&cl_leanmodel);
 	Cvar_RegisterVariable (&cl_leanmodel_side_speed);

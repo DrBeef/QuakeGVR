@@ -1932,8 +1932,19 @@ static void ovrApp_HandleInput( ovrApp * app )
                     }
                 }
 
-                gamepad_movementSideways = gamepadState.LeftJoyStick.x;
-				gamepad_movementForward = -gamepadState.LeftJoyStick.y;
+                //Adjust to be HMD oriented
+                vec3_t temp;
+                vec3_t v;
+                temp[0] = gamepadState.LeftJoyStick.x;
+                temp[1] = -gamepadState.LeftJoyStick.y;
+
+                matrix4x4_t matrix;
+                Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, hmdRemoteYawDiff, 0.0f, 1.0f);
+                Matrix4x4_Transform(&matrix, temp, v);
+
+                gamepad_movementSideways = v[0];
+                gamepad_movementForward = v[1];
+
 
 				long t = Sys_Milliseconds();
 				delta = t - oldtime;
