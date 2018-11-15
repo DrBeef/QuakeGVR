@@ -115,6 +115,7 @@ extern cvar_t r_worldscale;
 extern cvar_t cl_forwardspeed;
 extern cvar_t cl_postrackmultiplier;
 extern cvar_t cl_controllerstrafe;
+extern cvar_t cl_controllermode;
 
 extern int			key_consoleactive;
 
@@ -1933,17 +1934,25 @@ static void ovrApp_HandleInput( ovrApp * app )
                 }
 
                 //Adjust to be HMD oriented
-                vec3_t temp;
-                vec3_t v;
-                temp[0] = gamepadState.LeftJoyStick.x;
-                temp[1] = -gamepadState.LeftJoyStick.y;
+                if (cl_controllermode.integer)
+                {
+                    vec3_t temp;
+                    vec3_t v;
+                    temp[0] = gamepadState.LeftJoyStick.x;
+                    temp[1] = -gamepadState.LeftJoyStick.y;
 
-                matrix4x4_t matrix;
-                Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, hmdRemoteYawDiff, 0.0f, 1.0f);
-                Matrix4x4_Transform(&matrix, temp, v);
+                    matrix4x4_t matrix;
+                    Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, hmdRemoteYawDiff, 0.0f, 1.0f);
+                    Matrix4x4_Transform(&matrix, temp, v);
 
-                gamepad_movementSideways = v[0];
-                gamepad_movementForward = v[1];
+                    gamepad_movementSideways = v[0];
+                    gamepad_movementForward = v[1];
+                }
+                else
+                {
+                    gamepad_movementSideways = gamepadState.LeftJoyStick.x;
+                    gamepad_movementForward = -gamepadState.LeftJoyStick.y;
+                }
 
 
 				long t = Sys_Milliseconds();
