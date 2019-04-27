@@ -2480,12 +2480,12 @@ JNIEXPORT jlong JNICALL Java_com_drbeef_quakegvr_GLES3JNILib_onCreate( JNIEnv * 
             SS_MULTIPLIER = ss->dval[0];
         }
 
-        if (cpu->count > 0 && cpu->ival[0] > 0 && cpu->ival[0] < 4)
+        if (cpu->count > 0 && cpu->ival[0] > 0 && cpu->ival[0] < 10)
         {
             CPU_LEVEL = cpu->ival[0];
         }
 
-        if (gpu->count > 0 && gpu->ival[0] > 0 && gpu->ival[0] < 4)
+        if (gpu->count > 0 && gpu->ival[0] > 0 && gpu->ival[0] < 10)
         {
             GPU_LEVEL = gpu->ival[0];
         }

@@ -44,6 +44,12 @@ class Point3D {
 		z = 0.0f;
 	}
 
+	public Point3D(Point3D p) {
+		x = p.x;
+		y = p.y;
+		z = p.z;
+	}
+
 	//Position
 	public float x;
 	public float y;
@@ -81,13 +87,15 @@ public class PositionalTracking  implements Runnable {
 	private Deque<Point3D> pointDeque = new LinkedList<Point3D>();
 
 	private float[] worldOrigin = {0.0f, 0.0f, 0.0f};; // This can change, if it the camera position deviates suddenly from the previous position, reset the origin to where we are now
-
+	private Point3D lastPoint = null;
 
 	public synchronized void getPosition(float[] position)
 	{
 		if (!m_async)
 		{
-			updatePosition(false);
+			if (pointDeque.isEmpty()) {
+				updatePosition(false);
+			}
 		}
 
 		if (pointDeque.isEmpty())
@@ -99,7 +107,7 @@ public class PositionalTracking  implements Runnable {
 		}
 		else
 		{
-			Point3D point = pointDeque.peekLast();
+			Point3D point = pointDeque.removeLast();
 			position[0] = point.x;
 			position[1] = point.y;
 			position[2] = point.z;
@@ -113,12 +121,28 @@ public class PositionalTracking  implements Runnable {
 		position.y = (translation[1] - worldOrigin[1]) * 1.0f;
 		position.z = (translation[2] - worldOrigin[2]) * 1.0f;
 
-		pointDeque.addLast(position);
-
-		while (pointDeque.size() > 1)
+		if (lastPoint == null)
 		{
-			pointDeque.pop();
+			pointDeque.addLast(position);
+			pointDeque.addLast(position);
 		}
+		else {
+
+			pointDeque.addLast(position);
+
+			Point3D midPosition = new Point3D();
+			midPosition.x = (position.x + lastPoint.x) / 2.0f;
+			midPosition.y = (position.y + lastPoint.y) / 2.0f;
+			midPosition.z = (position.z + lastPoint.z) / 2.0f;
+
+			pointDeque.addLast(midPosition);
+
+			while (pointDeque.size() > 2) {
+				pointDeque.removeFirst();
+			}
+		}
+
+		lastPoint = position;
 	}
 
 	private int cameraTextureId = -1;
