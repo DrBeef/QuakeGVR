@@ -116,6 +116,7 @@ extern cvar_t cl_forwardspeed;
 extern cvar_t cl_postrackmultiplier;
 extern cvar_t cl_controllerstrafe;
 extern cvar_t cl_controllermode;
+extern cvar_t cl_controllerdeadzone;
 
 extern int			key_consoleactive;
 
@@ -1933,13 +1934,19 @@ static void ovrApp_HandleInput( ovrApp * app )
                     }
                 }
 
+                float leftJoystickX, leftJoystickY, rightJoystickX, rightJoystickY;
+                leftJoystickX = (fabs(gamepadState.LeftJoyStick.x) > cl_controllerdeadzone.value) ? gamepadState.LeftJoyStick.x : 0.0f;
+                leftJoystickY = (fabs(gamepadState.LeftJoyStick.y) > cl_controllerdeadzone.value) ? gamepadState.LeftJoyStick.y : 0.0f;
+                rightJoystickX = (fabs(gamepadState.RightJoyStick.x) > cl_controllerdeadzone.value) ? gamepadState.RightJoyStick.x : 0.0f;
+                rightJoystickY = (fabs(gamepadState.RightJoyStick.y) > cl_controllerdeadzone.value) ? gamepadState.RightJoyStick.y : 0.0f;
+
                 //Adjust to be HMD oriented
                 if (cl_controllermode.integer)
                 {
                     vec3_t temp;
                     vec3_t v;
-                    temp[0] = gamepadState.LeftJoyStick.x;
-                    temp[1] = -gamepadState.LeftJoyStick.y;
+                    temp[0] = leftJoystickX;
+                    temp[1] = -leftJoystickY;
 
                     matrix4x4_t matrix;
                     Matrix4x4_CreateFromQuakeEntity(&matrix, 0.0f, 0.0f, 0.0f, 0.0f, hmdRemoteYawDiff, 0.0f, 1.0f);
@@ -1950,8 +1957,8 @@ static void ovrApp_HandleInput( ovrApp * app )
                 }
                 else
                 {
-                    gamepad_movementSideways = gamepadState.LeftJoyStick.x;
-                    gamepad_movementForward = -gamepadState.LeftJoyStick.y;
+                    gamepad_movementSideways = leftJoystickX;
+                    gamepad_movementForward = -leftJoystickY;
                 }
 
 
@@ -1960,7 +1967,7 @@ static void ovrApp_HandleInput( ovrApp * app )
 				oldtime = t;
 				if (delta > 1000)
 					delta = 1000;
-				QC_MotionEvent(delta, gamepadState.RightJoyStick.x, gamepadState.RightJoyStick.y);
+				QC_MotionEvent(delta, rightJoystickX, rightJoystickY);
 
                 //Store the state
                 lastFrameGamepadState[i] = gamepadState;

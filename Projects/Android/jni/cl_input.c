@@ -445,6 +445,7 @@ cvar_t cl_yawspeed = {CVAR_SAVE, "cl_yawspeed","150","keyboard yaw turning speed
 cvar_t cl_pitchspeed = {CVAR_SAVE, "cl_pitchspeed","150","keyboard pitch turning speed"};
 cvar_t cl_yawmult = {CVAR_SAVE, "cl_yawmult","1.0","Multiplier for yaw (leave at 1.0)"};
 cvar_t cl_pitchmult = {CVAR_SAVE, "cl_pitchmult","1.0","Multiplier for yaw (leave at 1.0)"};
+cvar_t cl_controllerdeadzone = {0, "cl_controllerdeadzone","0.05","Amount of deadzone to prevent movement drift due to badly calibrated controller (0.0 to 1.0)"};
 
 cvar_t cl_anglespeedkey = {CVAR_SAVE, "cl_anglespeedkey","1.5","how much +speed multiplies keyboard turning speed"};
 
@@ -2264,6 +2265,8 @@ void CL_InitInput (void)
 	Cvar_RegisterVariable(&cl_yawspeed);
 	Cvar_RegisterVariable(&cl_pitchmult);
 	Cvar_RegisterVariable(&cl_yawmult);
+	Cvar_RegisterVariable(&cl_controllerdeadzone);
+
 
 	Cvar_RegisterVariable(&cl_movecliptokeyboard);
 	Cvar_RegisterVariable(&cl_movement);
